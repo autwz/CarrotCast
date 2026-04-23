@@ -12,6 +12,9 @@ module.exports = {
   // 站内信相关
   MESSAGES: 'messages',
   
+  // 反馈相关
+  FEEDBACKS: 'feedbacks',
+  
   // 招募状态
   STATUS_DRAFT: 'draft',           // 草稿
   STATUS_RECRUITING: 'recruiting',  // 招募中

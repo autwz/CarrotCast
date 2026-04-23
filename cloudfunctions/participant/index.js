@@ -6,6 +6,73 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 const db = cloud.database();
 const _ = db.command;
 
+// 角色名称映射（全局）
+const ROLE_NAMES = {
+  singer: '歌手',
+  lyricist: '词作',
+  composer: '曲作',
+  arranger: '编曲',
+  mixer: '混音',
+  mastering: '母带',
+  producer: '监制',
+  other: '其他',
+  creator: '创建者'
+};
+
+// 从 HTTPS 临时链接还原 cloud:// fileID
+function restoreCloudFileID(httpsUrl) {
+  if (!httpsUrl || !httpsUrl.startsWith('https://')) return null;
+  try {
+    const urlObj = new URL(httpsUrl);
+    if (!urlObj.hostname.includes('.tcb.qcloud.la')) return null;
+    const subdomain = urlObj.hostname.split('.tcb.qcloud.la')[0];
+    const path = urlObj.pathname;
+    return `cloud://${subdomain}${path}`;
+  } catch (e) {
+    return null;
+  }
+}
+
+// 批量转换 cloud:// fileID 和已过期的 HTTPS 临时链接为新的临时 HTTPS URL
+async function convertCloudUrls(items, fields) {
+  const cloudUrls = [];
+  items.forEach(item => {
+    fields.forEach(field => {
+      const url = item[field];
+      if (!url || typeof url !== 'string') return;
+      
+      if (url.startsWith('cloud://')) {
+        cloudUrls.push({ item, field, url });
+      } else if (url.startsWith('https://') && url.includes('.tcb.qcloud.la')) {
+        const fileID = restoreCloudFileID(url);
+        if (fileID) {
+          cloudUrls.push({ item, field, url: fileID });
+        }
+      }
+    });
+  });
+  
+  if (cloudUrls.length === 0) return;
+  
+  const fileIDs = [...new Set(cloudUrls.map(c => c.url))];
+  try {
+    const res = await cloud.getTempFileURL({ fileList: fileIDs });
+    const urlMap = {};
+    (res.fileList || []).forEach(f => {
+      if (f.status === 0 && f.tempFileURL) {
+        urlMap[f.fileID] = f.tempFileURL;
+      }
+    });
+    cloudUrls.forEach(c => {
+      if (urlMap[c.url]) {
+        c.item[c.field] = urlMap[c.url];
+      }
+    });
+  } catch (e) {
+    console.error('转换云存储链接失败', e);
+  }
+}
+
 // 操作日志记录函数
 async function addOperationLog(collection, logData) {
   try {
@@ -28,8 +95,27 @@ exports.main = async (event, context) => {
   
   try {
     switch (action) {
-      case 'apply':
+      case 'apply': {
         // 申请加入招募
+        // 获取招募信息
+        const recruitment = await db.collection('recruitments').doc(data.recruitmentId).get();
+        
+        if (!recruitment.data) {
+          return {
+            success: false,
+            error: '招募不存在'
+          };
+        }
+        
+        // 检查招募状态：招募中和草稿状态才能申请
+        const notRecruitingStatuses = ['completed', 'published'];
+        if (notRecruitingStatuses.includes(recruitment.data.status)) {
+          return {
+            success: false,
+            error: '该招募已进入' + (recruitment.data.status === 'completed' ? '制作中' : '已发布') + '阶段，无法申请'
+          };
+        }
+        
         // 检查是否已申请
         const existRes = await db.collection('participants').where({
           recruitmentId: data.recruitmentId,
@@ -43,8 +129,43 @@ exports.main = async (event, context) => {
           };
         }
         
-        // 获取招募信息用于发送站内信和验证角色
-        const recruitment = await db.collection('recruitments').doc(data.recruitmentId).get();
+        // 检查申请列表数量上限（300）
+        const totalCount = await db.collection('participants').where({
+          recruitmentId: data.recruitmentId
+        }).count();
+        if (totalCount.total >= 300) {
+          return {
+            success: false,
+            error: '该招募的申请数量已达上限'
+          };
+        }
+        
+        // 检查是否已满员（职位需求人数已达标）
+        const positionNeeds = recruitment.data.positionNeeds || [];
+        const approvedParticipants = await db.collection('participants').where({
+          recruitmentId: data.recruitmentId,
+          status: 'approved'
+        }).field({ role: true }).get();
+        
+        // 统计各职位已有人数
+        const roleCountMap = {};
+        approvedParticipants.data.forEach(p => {
+          const role = p.role || 'other';
+          roleCountMap[role] = (roleCountMap[role] || 0) + 1;
+        });
+        
+        // 检查申请的职位是否已满
+        const applyRole = data.applyRole || 'other';
+        const needPosition = positionNeeds.find(p => p.roleId === applyRole);
+        if (needPosition) {
+          const currentCount = roleCountMap[applyRole] || 0;
+          if (currentCount >= needPosition.count) {
+            return {
+              success: false,
+              error: `该职位的招募人数已满（需要${needPosition.count}人，已有${currentCount}人）`
+            };
+          }
+        }
         
         // 添加申请记录
         const addRes = await db.collection('participants').add({
@@ -57,10 +178,9 @@ exports.main = async (event, context) => {
             workLink: data.workLink || '',
             musicPageLink: data.musicPageLink || '',
             message: data.message || '',
-            // 申请的职位类型
             applyRole: data.applyRole || 'other',
             applyRoleName: data.applyRoleName || '其他',
-            status: 'pending', // pending, approved, rejected
+            status: 'pending',
             isAdmin: false,
             applyTime: db.serverDate(),
             reviewTime: null,
@@ -68,22 +188,9 @@ exports.main = async (event, context) => {
           }
         });
         
-        // 获取角色名称映射
-        const roleNames = {
-          singer: '歌手',
-          lyricist: '词作',
-          composer: '曲作',
-          arranger: '编曲',
-          mixer: '混音',
-          mastering: '母带',
-          producer: '监制',
-          other: '其他',
-          creator: '创建者'
-        };
-        
         // 向招募创建者发送站内信
         if (recruitment.data && recruitment.data.creatorId) {
-          const roleName = roleNames[data.applyRole] || '其他';
+          const roleName = ROLE_NAMES[data.applyRole] || '其他';
           await db.collection('messages').add({
             data: {
               userId: recruitment.data.creatorId,
@@ -119,8 +226,9 @@ exports.main = async (event, context) => {
           success: true,
           id: addRes._id
         };
+      }
         
-      case 'review':
+      case 'review': {
         // 审核申请（仅管理员可操作）
         const recruitmentForReview = await db.collection('recruitments').doc(data.recruitmentId).get();
         
@@ -142,28 +250,21 @@ exports.main = async (event, context) => {
         // 获取申请者信息（审核前）
         const participantBefore = await db.collection('participants').doc(data.id).get();
         const oldStatus = participantBefore.data?.status;
-        const applyRole = participantBefore.data?.applyRole || 'other';
-        
-        // 角色名称映射
-        const roleNames = {
-          singer: '歌手',
-          lyricist: '词作',
-          composer: '曲作',
-          arranger: '编曲',
-          mixer: '混音',
-          mastering: '母带',
-          producer: '监制',
-          other: '其他',
-          creator: '创建者'
-        };
+        const reviewApplyRole = participantBefore.data?.applyRole || 'other';
         
         // 更新申请状态
+        const updateData = {
+          status: data.status,
+          reviewMessage: data.reviewMessage || '',
+          reviewTime: db.serverDate()
+        };
+        // 审批通过时保存职位信息
+        if (data.status === 'approved') {
+          updateData.role = reviewApplyRole;
+          updateData.roleName = ROLE_NAMES[reviewApplyRole] || reviewApplyRole || '其他';
+        }
         await db.collection('participants').doc(data.id).update({
-          data: {
-            status: data.status, // approved, rejected
-            reviewMessage: data.reviewMessage || '',
-            reviewTime: db.serverDate()
-          }
+          data: updateData
         });
         
         // 获取申请者信息
@@ -185,7 +286,7 @@ exports.main = async (event, context) => {
         }
         
         // 向申请者发送站内信
-        const roleName = roleNames[applyRole] || '其他';
+        const roleName = ROLE_NAMES[reviewApplyRole] || '其他';
         const msgContent = data.status === 'approved' 
           ? `恭喜！您申请担任"${roleName}"的加入申请已通过`
           : `抱歉，您的加入申请未通过${data.reviewMessage ? '，原因：' + data.reviewMessage : ''}`;
@@ -216,7 +317,7 @@ exports.main = async (event, context) => {
           participantId: data.id,
           oldStatus,
           newStatus: data.status,
-          applyRole,
+          applyRole: reviewApplyRole,
           reviewMessage: data.reviewMessage || '',
           ip: wxContext.CLIENTIP || '',
           userAgent: 'miniprogram'
@@ -225,8 +326,9 @@ exports.main = async (event, context) => {
         return {
           success: true
         };
+      }
         
-      case 'getApplyList':
+      case 'getApplyList': {
         // 获取招募的申请列表（仅管理员可见）
         const recruitmentForList = await db.collection('recruitments').doc(data.recruitmentId).get();
         
@@ -240,25 +342,12 @@ exports.main = async (event, context) => {
         // 检查权限
         const isAdmin = recruitmentForList.data.admins.includes(openid);
         
+        // 获取所有状态的申请（包括pending, approved, rejected）
         const applyListRes = await db.collection('participants')
           .where({
             recruitmentId: data.recruitmentId
           })
-          .orderBy('applyTime', 'desc')
           .get();
-        
-        // 角色名称映射
-        const roleNames = {
-          singer: '歌手',
-          lyricist: '词作',
-          composer: '曲作',
-          arranger: '编曲',
-          mixer: '混音',
-          mastering: '母带',
-          producer: '监制',
-          other: '其他',
-          creator: '创建者'
-        };
         
         // 获取申请者用户信息
         const applicantIds = applyListRes.data.map(p => p.userId);
@@ -272,23 +361,36 @@ exports.main = async (event, context) => {
           });
         }
         
-        const applyListWithUser = applyListRes.data.map(p => ({
+        // 排序：待审核(pending)优先，然后按申请时间倒序
+        const sortedList = applyListRes.data.sort((a, b) => {
+          if (a.status === 'pending' && b.status !== 'pending') return -1;
+          if (a.status !== 'pending' && b.status === 'pending') return 1;
+          const timeA = new Date(a.applyTime).getTime();
+          const timeB = new Date(b.applyTime).getTime();
+          return timeB - timeA;
+        });
+        
+        const applyListWithUser = sortedList.map(p => ({
           ...p,
           userAvatar: usersMap[p.userId]?.avatar || '',
           userNickname: usersMap[p.userId]?.nickname || '匿名用户',
           userBio: usersMap[p.userId]?.bio || '',
           isSelf: p.userId === openid,
           canReview: isAdmin && p.status === 'pending',
-          applyRoleName: roleNames[p.applyRole] || p.applyRole || '其他'
+          applyRoleName: ROLE_NAMES[p.applyRole] || p.applyRole || '其他'
         }));
+        
+        // 转换 cloud:// 头像链接为临时 HTTPS 链接
+        await convertCloudUrls(applyListWithUser, ['userAvatar']);
         
         return {
           success: true,
           data: applyListWithUser,
           isAdmin
         };
+      }
         
-      case 'setAdmin':
+      case 'setAdmin': {
         // 设置/取消管理员权限
         const recruitmentForAdmin = await db.collection('recruitments').doc(data.recruitmentId).get();
         
@@ -335,8 +437,9 @@ exports.main = async (event, context) => {
         return {
           success: true
         };
+      }
         
-      case 'getMyApplyStatus':
+      case 'getMyApplyStatus': {
         // 获取我在某个招募中的申请状态
         const myApply = await db.collection('participants').where({
           recruitmentId: data.recruitmentId,
@@ -347,8 +450,9 @@ exports.main = async (event, context) => {
           success: true,
           data: myApply.data[0] || null
         };
+      }
         
-      case 'remove':
+      case 'remove': {
         // 移除参与者（仅管理员可操作）
         const recruitmentForRemove = await db.collection('recruitments').doc(data.recruitmentId).get();
         
@@ -430,6 +534,7 @@ exports.main = async (event, context) => {
         return {
           success: true
         };
+      }
         
       default:
         return {

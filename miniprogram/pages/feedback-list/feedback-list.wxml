@@ -1,0 +1,82 @@
+<view class="page">
+  <!-- 标签栏 -->
+  <view class="tabs">
+    <view class="tab {{currentTab === 'pending' ? 'active' : ''}}" bindtap="switchTab" data-tab="pending">
+      待处理 ({{pendingCount}})
+    </view>
+    <view class="tab {{currentTab === 'scheduled' ? 'active' : ''}}" bindtap="switchTab" data-tab="scheduled">
+      可排期 ({{scheduledCount}})
+    </view>
+    <view class="tab {{currentTab === 'resolved' ? 'active' : ''}}" bindtap="switchTab" data-tab="resolved">
+      已解决 ({{resolvedCount}})
+    </view>
+    <view class="tab {{currentTab === 'invalid' ? 'active' : ''}}" bindtap="switchTab" data-tab="invalid">
+      作废 ({{invalidCount}})
+    </view>
+  </view>
+
+  <!-- 列表 -->
+  <view class="list-container">
+    <view wx:if="{{loading}}" class="loading-state">
+      <text>加载中...</text>
+    </view>
+
+    <block wx:elif="{{feedbackList.length > 0}}">
+      <view class="feedback-card card" wx:for="{{feedbackList}}" wx:key="_id" wx:if="{{item.status === currentTab}}">
+        <view class="card-header">
+          <view class="user-info">
+            <image class="user-avatar" src="{{item.userAvatar || '/images/icons/avatar.png'}}" mode="aspectFill"></image>
+            <view class="user-detail">
+              <text class="user-name">{{item.userNickname}}</text>
+              <text class="feedback-time">{{formatDate(item.createTime)}}</text>
+            </view>
+          </view>
+          <view class="feedback-status" style="color: {{statusColor[item.status]}}; background: {{statusColor[item.status]}}20; border: 1rpx solid {{statusColor[item.status]}}40;">
+            {{statusMap[item.status]}}
+          </view>
+        </view>
+
+        <view class="card-content">{{item.content}}</view>
+
+        <view class="card-reply" wx:if="{{item.adminReply}}">
+          <text class="reply-label">管理员回复：</text>
+          <text class="reply-text">{{item.adminReply}}</text>
+        </view>
+
+        <!-- 操作按钮 -->
+        <view class="card-actions">
+          <view class="action-btn btn-scheduled" wx:if="{{item.status !== 'scheduled'}}" bindtap="showStatusModal" data-item="{{item}}" data-status="scheduled">可排期</view>
+          <view class="action-btn btn-resolved" wx:if="{{item.status !== 'resolved'}}" bindtap="showStatusModal" data-item="{{item}}" data-status="resolved">已解决</view>
+          <view class="action-btn btn-invalid" wx:if="{{item.status !== 'invalid'}}" bindtap="showStatusModal" data-item="{{item}}" data-status="invalid">作废</view>
+        </view>
+      </view>
+    </block>
+
+    <view wx:else class="empty-state">
+      <text>暂无反馈</text>
+    </view>
+  </view>
+</view>
+
+<!-- 状态修改弹窗 -->
+<view class="modal-mask {{showStatusModal ? 'show' : ''}}" bindtap="hideStatusModal">
+  <view class="modal-content" catchtap="preventBubble">
+    <view class="modal-header">
+      <text class="modal-title">标记为{{statusMap[newStatus]}}</text>
+      <view class="modal-close" bindtap="hideStatusModal">✕</view>
+    </view>
+    <view class="modal-body">
+      <view class="feedback-preview" wx:if="{{currentItem}}">
+        <text class="preview-text">{{currentItem.content}}</text>
+      </view>
+      <view class="input-item">
+        <text class="input-label">管理员回复（选填）</text>
+        <textarea class="input-textarea" placeholder="对用户的问题/建议进行回复" value="{{adminReply}}" bindinput="onReplyInput" maxlength="200"></textarea>
+      </view>
+    </view>
+    <view class="modal-footer">
+      <button class="btn btn-outline" bindtap="hideStatusModal">取消</button>
+      <button class="btn btn-primary" bindtap="submitStatus">确认</button>
+    </view>
+  </view>
+</view>

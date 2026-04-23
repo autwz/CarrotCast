@@ -34,7 +34,7 @@
 
       <view class="info-item">
         <text class="info-label">预算/报酬</text>
-        <text class="info-value budget-value">{{recruitment.budget || '面议'}}</text>
+        <text class="info-value budget-value">{{recruitment.budget || '无'}}</text>
       </view>
 
       <view class="info-item">
@@ -67,30 +67,24 @@
             <text class="position-demand-desc">{{item.count}}人</text>
           </view>
           <view class="position-demand-status">
-            <text class="current-count">{{roleCountMap[item.roleId] || 0}}</text>
+            <text class="current-count">{{item.currentCount || 0}}</text>
             <text class="total-count">/ {{item.count}}</text>
-            <view class="demand-badge {{(roleCountMap[item.roleId] || 0) >= item.count ? 'full' : 'need'}}">
-              {{(roleCountMap[item.roleId] || 0) >= item.count ? '已满' : '招募中'}}
+            <view class="demand-badge {{item.isFull ? 'full' : 'need'}}">
+              {{item.isFull ? '已满' : '招募中'}}
             </view>
           </view>
         </view>
       </view>
     </view>
 
-    <!-- 招募简介 -->
+    <!-- 招募简介与需求 -->
     <view class="card" wx:if="{{recruitment.description}}">
-      <view class="section-title">招募简介</view>
+      <view class="section-title">招募简介与需求</view>
       <view class="description-text">{{recruitment.description}}</view>
     </view>
 
-    <!-- 详细说明 -->
-    <view class="card" wx:if="{{recruitment.requirements}}">
-      <view class="section-title">详细说明</view>
-      <view class="description-text">{{recruitment.requirements}}</view>
-    </view>
-
     <!-- 参与者专属信息 -->
-    <view class="card participant-card" wx:if="{{isParticipant && (recruitment.teamQQ || recruitment.teamWechat || recruitment.teamNotes)}}">
+    <view class="card participant-card" wx:if="{{isParticipant && (recruitment.teamQQ || recruitment.teamWechatQR || recruitment.teamNotes)}}">
       <view class="section-header">
         <text class="section-title">团队交流渠道</text>
         <view class="participant-badge">参与者可见</view>
@@ -102,10 +96,10 @@
         <text class="channel-value">{{recruitment.teamQQ}}</text>
       </view>
       
-      <!-- 微信群 -->
-      <view class="team-channel" wx:if="{{recruitment.teamWechat}}">
-        <text class="channel-label">微信</text>
-        <text class="channel-value">{{recruitment.teamWechat}}</text>
+      <!-- 微信群二维码 -->
+      <view class="team-channel team-qr-channel" wx:if="{{recruitment.teamWechatQR}}">
+        <text class="channel-label">群二维码</text>
+        <image class="team-qr-image" src="{{recruitment.teamWechatQR}}" mode="aspectFit" bindtap="previewTeamQR"></image>
       </view>
       
       <!-- 备注 -->
@@ -130,7 +124,7 @@
       <view class="section-header">
         <text class="section-title">参与者 ({{participantList.length}})</text>
         <view class="admin-actions" wx:if="{{isAdmin}}">
-          <view class="action-btn" bindtap="goToApplyList">管理申请</view>
+          <view class="action-btn" bindtap="goToApplyList">管理申请<text class="pending-badge" wx:if="{{pendingApplyCount > 0}}">{{pendingApplyCount}}</text></view>
         </view>
       </view>
 
@@ -140,7 +134,9 @@
             <image class="participant-avatar" src="{{item.avatar || '/images/icons/avatar.png'}}" mode="aspectFill"></image>
             <view class="participant-info">
               <text class="participant-name">{{item.nickname || '匿名用户'}}</text>
-              <text class="participant-role">{{item.roleName}}</text>
+              <view class="participant-role-wrap">
+                <text class="participant-role {{item.isCreator ? 'creator-role' : ''}}">{{item.roleName}}</text>
+              </view>
             </view>
           </view>
           <!-- 管理员可移除非创建者 -->
@@ -171,14 +167,25 @@
         
         <!-- 操作按钮组 -->
         <view class="btn-group">
+          <!-- 招募已结束（制作中/已发布） -->
+          <view class="btn btn-disabled" wx:if="{{recruitment.status === 'completed' || recruitment.status === 'published'}}">
+            {{recruitment.status === 'completed' ? '制作中' : '已发布'}}
+          </view>
+          
           <!-- 未登录 -->
-          <view class="btn btn-primary" wx:if="{{!isLoggedIn}}" bindtap="goToLogin">登录后申请加入</view>
+          <view class="btn btn-primary" wx:elif="{{!isLoggedIn}}" bindtap="goToLogin">登录后申请加入</view>
           
           <!-- 已加入 -->
           <view class="btn btn-success" wx:elif="{{myApplyStatus && myApplyStatus.status === 'approved'}}">已加入</view>
           
           <!-- 等待审核 -->
           <view class="btn btn-pending" wx:elif="{{myApplyStatus && myApplyStatus.status === 'pending'}}">等待审核</view>
+          
+          <!-- 职位已满（仅管理员/创建者可见） -->
+          <view class="btn btn-disabled" wx:elif="{{isFull && isAdmin}}">职位已满</view>
+          
+          <!-- 招募已满，普通用户显示无法加入 -->
+          <view class="btn btn-disabled" wx:elif="{{isFull}}">招募已满</view>
           
           <!-- 未申请 / 重新申请 -->
           <view class="btn btn-apply" wx:else bindtap="showApplyModal">
@@ -229,15 +236,15 @@
         <text class="input-label">申请职位 <text class="required">*</text></text>
         <view class="role-selector">
           <view 
-            class="role-option {{applyForm.applyRole === item.id ? 'selected' : ''}}" 
-            wx:for="{{roleTypes}}" 
+            class="role-option {{applyForm.applyRole === item.id ? 'selected' : ''}} {{item.isFull ? 'disabled' : ''}}" 
+            wx:for="{{allRolesWithStatus}}" 
             wx:key="id"
-            bindtap="onSelectRole" 
+            bindtap="{{item.isFull ? 'preventBubble' : 'onSelectRole'}}" 
             data-roleid="{{item.id}}"
             data-rolename="{{item.name}}"
           >
             <text class="role-name">{{item.name}}</text>
-            <text class="role-desc">{{item.desc}}</text>
+            <text class="role-desc">{{item.isFull ? '已满' : '剩余' + item.remainCount + '/' + item.count + '人'}}</text>
           </view>
         </view>
       </view>

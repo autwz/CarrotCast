@@ -7,6 +7,10 @@ Page({
     recruitmentTitle: '',
     currentTab: 'pending',
     applyList: [],
+    filteredList: [],
+    pendingCount: 0,
+    approvedCount: 0,
+    rejectedCount: 0,
     isAdmin: false,
     showReviewModal: false,
     currentApply: {},
@@ -27,6 +31,22 @@ Page({
     this.loadApplyList();
   },
 
+  // 根据申请列表和当前标签更新过滤后的列表和计数
+  updateFilteredList: function () {
+    const { applyList, currentTab } = this.data;
+    const pendingCount = applyList.filter(item => item.status === 'pending').length;
+    const approvedCount = applyList.filter(item => item.status === 'approved').length;
+    const rejectedCount = applyList.filter(item => item.status === 'rejected').length;
+    const filteredList = applyList.filter(item => item.status === currentTab);
+
+    this.setData({
+      filteredList,
+      pendingCount,
+      approvedCount,
+      rejectedCount
+    });
+  },
+
   // 加载申请列表
   loadApplyList: function () {
     showLoading();
@@ -45,6 +65,7 @@ Page({
           applyList: res.result.data,
           isAdmin: res.result.isAdmin
         });
+        this.updateFilteredList();
       } else {
         showError(res.result.error || '加载失败');
       }
@@ -55,26 +76,11 @@ Page({
     });
   },
 
-  // 计算属性
-  computed: {
-    filteredList: function () {
-      return this.data.applyList.filter(item => item.status === this.data.currentTab);
-    },
-    pendingCount: function () {
-      return this.data.applyList.filter(item => item.status === 'pending').length;
-    },
-    approvedCount: function () {
-      return this.data.applyList.filter(item => item.status === 'approved').length;
-    },
-    rejectedCount: function () {
-      return this.data.applyList.filter(item => item.status === 'rejected').length;
-    }
-  },
-
   // 切换标签
   switchTab: function (e) {
     const tab = e.currentTarget.dataset.tab;
     this.setData({ currentTab: tab });
+    this.updateFilteredList();
   },
 
   // 获取标签名称

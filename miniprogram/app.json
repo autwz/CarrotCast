@@ -8,7 +8,9 @@
     "pages/recruitment-form/recruitment-form",
     "pages/apply-list/apply-list",
     "pages/messages/messages",
-    "pages/message-detail/message-detail"
+    "pages/message-detail/message-detail",
+    "pages/feedback/feedback",
+    "pages/feedback-list/feedback-list"
   ],
   "window": {
     "backgroundColor": "#F6F6F6",

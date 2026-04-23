@@ -6,6 +6,64 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 const db = cloud.database();
 const _ = db.command;
 
+// 从 HTTPS 临时链接还原 cloud:// fileID
+// 临时链接格式: https://{env-id}.tcb.qcloud.la/{path}?sign=xxx&t=xxx
+function restoreCloudFileID(httpsUrl) {
+  if (!httpsUrl || !httpsUrl.startsWith('https://')) return null;
+  try {
+    const urlObj = new URL(httpsUrl);
+    // 匹配 tcb.qcloud.la 域名
+    if (!urlObj.hostname.includes('.tcb.qcloud.la')) return null;
+    // env-id 在子域名中: {bucket}-{env-id}.tcb.qcloud.la
+    const subdomain = urlObj.hostname.split('.tcb.qcloud.la')[0];
+    const path = urlObj.pathname; // 如 /covers/xxx.jpg
+    return `cloud://${subdomain}${path}`;
+  } catch (e) {
+    return null;
+  }
+}
+
+// 批量转换 cloud:// fileID 和已过期的 HTTPS 临时链接为新的临时 HTTPS URL
+async function convertCloudUrls(items, fields) {
+  const cloudUrls = [];
+  items.forEach(item => {
+    fields.forEach(field => {
+      const url = item[field];
+      if (!url || typeof url !== 'string') return;
+      
+      if (url.startsWith('cloud://')) {
+        cloudUrls.push({ item, field, url });
+      } else if (url.startsWith('https://') && url.includes('.tcb.qcloud.la')) {
+        // HTTPS 临时链接可能已过期，还原为 cloud:// fileID 后重新获取
+        const fileID = restoreCloudFileID(url);
+        if (fileID) {
+          cloudUrls.push({ item, field, url: fileID });
+        }
+      }
+    });
+  });
+  
+  if (cloudUrls.length === 0) return;
+  
+  const fileIDs = [...new Set(cloudUrls.map(c => c.url))];
+  try {
+    const res = await cloud.getTempFileURL({ fileList: fileIDs });
+    const urlMap = {};
+    (res.fileList || []).forEach(f => {
+      if (f.status === 0 && f.tempFileURL) {
+        urlMap[f.fileID] = f.tempFileURL;
+      }
+    });
+    cloudUrls.forEach(c => {
+      if (urlMap[c.url]) {
+        c.item[c.field] = urlMap[c.url];
+      }
+    });
+  } catch (e) {
+    console.error('转换云存储链接失败', e);
+  }
+}
+
 // 云函数入口函数
 exports.main = async (event, context) => {
   const wxContext = cloud.getWXContext();
@@ -16,6 +74,15 @@ exports.main = async (event, context) => {
     switch (action) {
       case 'create':
         // 创建招募
+        // 校验职位总招募人数上限（200）
+        const createTotalCount = (data.positionNeeds || []).reduce((sum, p) => sum + (p.count || 0), 0);
+        if (createTotalCount > 200) {
+          return {
+            success: false,
+            error: `职位总招募人数不能超过200人，当前为${createTotalCount}人`
+          };
+        }
+        
         const createRes = await db.collection('recruitments').add({
           data: {
             title: data.title || '',
@@ -33,7 +100,7 @@ exports.main = async (event, context) => {
             publishUrl: data.publishUrl || '',
             // 团队交流渠道（参与者可见）
             teamQQ: data.teamQQ || '',
-            teamWechat: data.teamWechat || '',
+            teamWechatQR: data.teamWechatQR || '',
             teamNotes: data.teamNotes || '',
             creatorId: openid,
             admins: [openid], // 管理员列表
@@ -67,12 +134,33 @@ exports.main = async (event, context) => {
         
       case 'update':
         // 更新招募信息
+        // 校验职位总招募人数上限（200）
+        if (data.positionNeeds) {
+          const updateTotalCount = data.positionNeeds.reduce((sum, p) => sum + (p.count || 0), 0);
+          if (updateTotalCount > 200) {
+            return {
+              success: false,
+              error: `职位总招募人数不能超过200人，当前为${updateTotalCount}人`
+            };
+          }
+        }
+        
         const updateData = {
           ...data,
           updateTime: db.serverDate()
         };
         delete updateData._id;
         delete updateData.creatorId; // 创建者不可更改
+        delete updateData.originalStatus; // 辅助字段不入库
+        
+        // 过滤掉 HTTPS 临时链接，防止覆盖原始 cloud:// fileID
+        // 前端回传的图片字段可能是 get 时转换的临时 HTTPS 链接，已过期不可用
+        const cloudFields = ['coverImage', 'teamWechatQR'];
+        cloudFields.forEach(field => {
+          if (updateData[field] && typeof updateData[field] === 'string' && updateData[field].startsWith('https://')) {
+            delete updateData[field];
+          }
+        });
         
         const updateRes = await db.collection('recruitments').doc(data._id).update({
           data: updateData
@@ -176,16 +264,34 @@ exports.main = async (event, context) => {
           recruitmentId: data.id
         }).count();
         
+        // 获取待审核数量
+        const pendingCount = await db.collection('participants').where({
+          recruitmentId: data.id,
+          status: 'pending'
+        }).count();
+        
+        // 转换 cloud:// 链接为临时 HTTPS 链接
+        const resultData = {
+          ...recruitment.data,
+          creatorInfo,
+          participantList,
+          participantCount: participantList.length,
+          roleCountMap,
+          totalApplyCount: allParticipants.total,
+          pendingApplyCount: pendingCount.total
+        };
+        await convertCloudUrls([resultData], ['coverImage', 'teamWechatQR']);
+        if (creatorInfo) {
+          await convertCloudUrls([creatorInfo], ['avatar']);
+        }
+        // 转换参与者头像
+        if (participantList.length > 0) {
+          await convertCloudUrls(participantList, ['avatar']);
+        }
+        
         return {
           success: true,
-          data: {
-            ...recruitment.data,
-            creatorInfo,
-            participantList,
-            participantCount: participantList.length,
-            roleCountMap,
-            totalApplyCount: allParticipants.total
-          }
+          data: resultData
         };
         
       case 'list':
@@ -240,6 +346,9 @@ exports.main = async (event, context) => {
           creatorAvatar: creatorsMap[r.creatorId]?.avatar || ''
         }));
         
+        // 转换 cloud:// 封面图和创建者头像为临时 HTTPS 链接
+        await convertCloudUrls(listWithCreator, ['coverImage', 'creatorAvatar']);
+        
         return {
           success: true,
           data: listWithCreator,
@@ -284,10 +393,35 @@ exports.main = async (event, context) => {
           isCreator: createdIds.includes(r._id)
         }));
         
+        // 为我创建的招募查询待审核数量
+        const createdList = myListWithFlag.filter(r => r.isCreator);
+        if (createdList.length > 0) {
+          const createdRecruitmentIds = createdList.map(r => r._id);
+          // 查询这些招募中所有待审核的申请
+          const pendingRes = await db.collection('participants').where({
+            recruitmentId: _.in(createdRecruitmentIds),
+            status: 'pending'
+          }).field({ recruitmentId: true }).get();
+          
+          // 按招募ID统计待审核数量
+          const pendingCountMap = {};
+          pendingRes.data.forEach(p => {
+            pendingCountMap[p.recruitmentId] = (pendingCountMap[p.recruitmentId] || 0) + 1;
+          });
+          
+          // 将待审核数量附加到对应招募
+          createdList.forEach(r => {
+            r.pendingApplyCount = pendingCountMap[r._id] || 0;
+          });
+        }
+        
+        // 转换 cloud:// 封面图和创建者头像为临时 HTTPS 链接
+        await convertCloudUrls(myListWithFlag, ['coverImage']);
+        
         return {
           success: true,
           data: myListWithFlag,
-          created: myListWithFlag.filter(r => r.isCreator),
+          created: createdList,
           participated: myListWithFlag.filter(r => !r.isCreator)
         };
         
@@ -322,6 +456,35 @@ exports.main = async (event, context) => {
         return {
           success: true
         };
+        
+      case 'fixCloudUrls':
+        // 修复数据库中被 HTTPS 临时链接覆盖的 cloud:// fileID（一次性修复）
+        const fixFields = ['coverImage', 'teamWechatQR'];
+        const allRecords = await db.collection('recruitments').get();
+        let fixedCount = 0;
+        
+        for (const record of allRecords.data) {
+          const updates = {};
+          let needFix = false;
+          
+          fixFields.forEach(field => {
+            const val = record[field];
+            if (val && typeof val === 'string' && val.startsWith('https://') && val.includes('.tcb.qcloud.la')) {
+              const fileID = restoreCloudFileID(val);
+              if (fileID) {
+                updates[field] = fileID;
+                needFix = true;
+              }
+            }
+          });
+          
+          if (needFix) {
+            await db.collection('recruitments').doc(record._id).update({ data: updates });
+            fixedCount++;
+          }
+        }
+        
+        return { success: true, fixedCount, total: allRecords.data.length };
         
       default:
         return {

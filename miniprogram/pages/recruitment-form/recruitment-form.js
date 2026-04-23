@@ -27,7 +27,7 @@ Page({
       publishUrl: '',
       // 团队交流渠道（参与者可见）
       teamQQ: '',
-      teamWechat: '',
+      teamWechatQR: '',
       teamNotes: ''
     },
     
@@ -39,6 +39,8 @@ Page({
     saving: false,
     publishing: false,
     deleting: false,
+    // 制作中/已发布状态下字段是否锁定
+    isLocked: false,
     
     // 职位选择弹窗
     showPositionModal: false,
@@ -98,11 +100,12 @@ Page({
             status: recruitment.status || 'draft',
             positionNeeds: recruitment.positionNeeds || [],
             publishUrl: recruitment.publishUrl || '',
-            teamQQ: recruitment.teamQQ || '',
-            teamWechat: recruitment.teamWechat || '',
-            teamNotes: recruitment.teamNotes || ''
+          teamQQ: recruitment.teamQQ || '',
+          teamWechatQR: recruitment.teamWechatQR || '',
+          teamNotes: recruitment.teamNotes || ''
           },
-          originalStatus: recruitment.status
+          originalStatus: recruitment.status,
+          isLocked: recruitment.status === 'completed' || recruitment.status === 'published'
         });
       } else {
         showError(res.result.error || '加载失败');
@@ -169,6 +172,65 @@ Page({
     });
   },
 
+  // 选择微信群二维码
+  chooseWechatQR: function () {
+    wx.chooseMedia({
+      count: 1,
+      mediaType: ['image'],
+      sourceType: ['album', 'camera'],
+      success: (res) => {
+        const tempFile = res.tempFiles[0];
+        const maxSize = 5 * 1024 * 1024;
+        if (tempFile.size > maxSize) {
+          showError('图片不能超过5MB');
+          return;
+        }
+        this.uploadWechatQR(tempFile.tempFilePath);
+      }
+    });
+  },
+
+  // 上传微信群二维码
+  uploadWechatQR: function (filePath) {
+    showLoading('上传中...');
+    const timestamp = Date.now();
+    const cloudPath = `qrcodes/${app.globalData.userInfo.openid}_${timestamp}.jpg`;
+
+    wx.cloud.uploadFile({
+      cloudPath,
+      filePath,
+      success: (res) => {
+        this.setData({
+          'formData.teamWechatQR': res.fileID
+        });
+        hideLoading();
+        showSuccess('上传成功');
+      },
+      fail: (err) => {
+        hideLoading();
+        console.error('上传微信群二维码失败', err);
+        showError('上传失败');
+      }
+    });
+  },
+
+  // 删除微信群二维码
+  removeWechatQR: function () {
+    this.setData({
+      'formData.teamWechatQR': ''
+    });
+  },
+
+  // 预览微信群二维码
+  previewWechatQR: function () {
+    const url = this.data.formData.teamWechatQR;
+    if (!url) return;
+    wx.previewImage({
+      urls: [url],
+      current: url
+    });
+  },
+
   // 选择类型
   selectType: function (e) {
     const { formData } = this.data;
@@ -216,7 +278,8 @@ Page({
   selectStatus: function (e) {
     const status = e.currentTarget.dataset.status;
     this.setData({
-      'formData.status': status
+      'formData.status': status,
+      isLocked: status === 'completed' || status === 'published'
     });
   },
 
@@ -408,7 +471,7 @@ Page({
           status: 'draft',
           positionNeeds: this.getValidPositionNeeds(),
           teamQQ: formData.teamQQ || '',
-          teamWechat: formData.teamWechat || '',
+          teamWechatQR: formData.teamWechatQR || '',
           teamNotes: formData.teamNotes || ''
         }
       }
@@ -458,7 +521,7 @@ Page({
           status: 'recruiting',
           positionNeeds: this.getValidPositionNeeds(),
           teamQQ: this.data.formData.teamQQ || '',
-          teamWechat: this.data.formData.teamWechat || '',
+          teamWechatQR: this.data.formData.teamWechatQR || '',
           teamNotes: this.data.formData.teamNotes || ''
         }
       }
@@ -503,7 +566,7 @@ Page({
             originalStatus: originalStatus,
             publishUrl: formData.publishUrl || '',
             teamQQ: formData.teamQQ || '',
-            teamWechat: formData.teamWechat || '',
+            teamWechatQR: formData.teamWechatQR || '',
             teamNotes: formData.teamNotes || ''
           }
         }
@@ -554,7 +617,7 @@ Page({
           positionNeeds: this.getValidPositionNeeds(),
           publishUrl: formData.publishUrl || '',
           teamQQ: formData.teamQQ || '',
-          teamWechat: formData.teamWechat || '',
+          teamWechatQR: formData.teamWechatQR || '',
           teamNotes: formData.teamNotes || ''
         }
       }

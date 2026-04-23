@@ -1,0 +1,17 @@
+<view class="page">
+  <!-- 反馈输入区 -->
+  <view class="feedback-form card">
+    <view class="form-title">反馈问题/建议</view>
+    <textarea 
+      class="feedback-textarea" 
+      placeholder="请描述您遇到的问题或改进建议..." 
+      value="{{content}}" 
+      bindinput="onContentInput" 
+      maxlength="{{maxLength}}"
+    ></textarea>
+    <view class="form-footer">
+      <text class="char-count {{content.length >= maxLength ? 'over' : ''}}">{{content.length}}/{{maxLength}}</text>
+      <view class="submit-btn" bindtap="onSubmit">提交反馈</view>
+    </view>
+  </view>
+</view>

@@ -165,6 +165,23 @@
   font-size: 24rpx;
   color: #FF6B6B;
   margin-left: 16rpx;
+  position: relative;
+}
+
+/* 待审核数量徽标 */
+.action-btn .pending-badge {
+  display: inline-block;
+  min-width: 32rpx;
+  height: 32rpx;
+  line-height: 32rpx;
+  padding: 0 8rpx;
+  background: #ff4d4f;
+  color: #fff;
+  border-radius: 16rpx;
+  font-size: 20rpx;
+  text-align: center;
+  margin-left: 6rpx;
+  vertical-align: middle;
 }
 
 .view-btn {

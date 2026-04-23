@@ -1,26 +1,29 @@
 <view class="page">
   <view class="form-section">
     <!-- 封面图片 -->
-    <view class="cover-section card">
+    <view class="cover-section card {{isLocked ? 'section-locked' : ''}}">
       <view class="section-title">{{isEdit ? '封面图片' : '封面图片'}}</view>
-      <view class="cover-picker" bindtap="chooseCover">
+      <view class="cover-picker" bindtap="{{isLocked ? '' : 'chooseCover'}}">
         <image class="cover-image" src="{{formData.coverImage || '/images/default-cover.png'}}" mode="aspectFill"></image>
-        <view class="cover-mask">
+        <view class="cover-mask" wx:if="{{!isLocked}}">
           <text class="cover-hint">{{formData.coverImage ? '点击更换封面' : '点击添加封面'}}</text>
+        </view>
+        <view class="locked-mask" wx:if="{{isLocked}}">
+          <text class="locked-hint">制作中不可修改</text>
         </view>
       </view>
     </view>
 
     <!-- 基本信息 -->
-    <view class="card">
+    <view class="card {{isLocked ? 'section-locked' : ''}}">
       <view class="section-title">基本信息</view>
 
       <view class="form-item">
         <text class="form-label">招募类型 <text class="required">*</text></text>
-        <view class="type-selector">
+        <view class="type-selector {{isLocked ? 'disabled' : ''}}">
           <view 
             class="type-option {{formData.type === 'original' ? 'selected' : ''}}" 
-            bindtap="selectType"
+            bindtap="{{isLocked ? '' : 'selectType'}}"
             data-type="original"
           >
             <text class="type-icon">🎵</text>
@@ -28,7 +31,7 @@
           </view>
           <view 
             class="type-option {{formData.type === 'cover' ? 'selected' : ''}}" 
-            bindtap="selectType"
+            bindtap="{{isLocked ? '' : 'selectType'}}"
             data-type="cover"
           >
             <text class="type-icon">🎤</text>
@@ -39,7 +42,7 @@
 
       <view class="form-item">
         <text class="form-label">音乐类型 <text class="required">*</text></text>
-        <picker mode="selector" range="{{musicTypes}}" range-key="name" bindchange="selectMusicType">
+        <picker wx:if="{{!isLocked}}" mode="selector" range="{{musicTypes}}" range-key="name" bindchange="selectMusicType">
           <view class="picker-value">
             <text class="{{formData.musicTypeName ? 'picker-text' : 'picker-placeholder'}}">
               {{formData.musicTypeName || '请选择音乐类型'}}
@@ -47,26 +50,30 @@
             <text class="picker-arrow">›</text>
           </view>
         </picker>
+        <view wx:else class="picker-value">
+          <text class="picker-text">{{formData.musicTypeName || '未设置'}}</text>
+        </view>
       </view>
 
       <view class="form-item">
         <text class="form-label">标题 <text class="required">*</text></text>
         <view class="input-wrapper">
           <input 
-            class="input-field" 
+            class="input-field {{isLocked ? 'disabled' : ''}}" 
             placeholder="请输入招募标题" 
             placeholder-style="color:#bbb;font-size:28rpx;" 
             value="{{formData.title}}" 
-            bindinput="onInput" 
+            bindinput="{{isLocked ? '' : 'onInput'}}" 
             data-field="title" 
             maxlength="50" 
+            disabled="{{isLocked}}"
           />
         </view>
       </view>
 
       <view class="form-item">
         <text class="form-label">截止日期</text>
-        <picker mode="date" value="{{formData.deadline}}" bindchange="selectDeadline">
+        <picker wx:if="{{!isLocked}}" mode="date" value="{{formData.deadline}}" bindchange="selectDeadline">
           <view class="picker-value">
             <text class="{{formData.deadline ? 'picker-text' : 'picker-placeholder'}}">
               {{formData.deadline || '不设置截止日期'}}
@@ -74,38 +81,42 @@
             <text class="picker-arrow">›</text>
           </view>
         </picker>
+        <view wx:else class="picker-value">
+          <text class="picker-text">{{formData.deadline || '不设置截止日期'}}</text>
+        </view>
       </view>
 
       <view class="form-item">
         <text class="form-label">标签</text>
-        <view class="tags-input-wrapper">
+        <view class="tags-input-wrapper {{isLocked ? 'disabled' : ''}}">
           <view class="tags-list">
             <view class="tag-item" wx:for="{{formData.tags}}" wx:key="index">
               <text>{{item}}</text>
-              <view class="tag-delete" catchtap="removeTag" data-index="{{index}}">×</view>
+              <view class="tag-delete" wx:if="{{!isLocked}}" catchtap="removeTag" data-index="{{index}}">×</view>
             </view>
           </view>
-          <input class="tag-input" placeholder="输入标签后回车添加" placeholder-style="color:#bbb;font-size:26rpx;" bindconfirm="addTag" maxlength="10" />
+          <input wx:if="{{!isLocked}}" class="tag-input" placeholder="输入标签后回车添加" placeholder-style="color:#bbb;font-size:26rpx;" bindconfirm="addTag" maxlength="10" />
         </view>
       </view>
     </view>
 
     <!-- 详细说明 -->
-    <view class="card">
+    <view class="card {{isLocked ? 'section-locked' : ''}}">
       <view class="section-title">详细说明</view>
 
       <view class="form-item">
         <text class="form-label">招募简介与需求</text>
         <view class="textarea-wrapper">
           <textarea 
-            class="textarea-field" 
+            class="textarea-field {{isLocked ? 'disabled' : ''}}" 
             placeholder="请详细描述招募简介与需求，如演唱要求、角色需求、设备要求、预算报酬等" 
             placeholder-style="color:#bbb;font-size:28rpx;"
             value="{{formData.description}}" 
-            bindinput="onInput" 
+            bindinput="{{isLocked ? '' : 'onInput'}}" 
             data-field="description" 
             maxlength="1000"
             auto-height
+            disabled="{{isLocked}}"
           ></textarea>
         </view>
         <text class="char-count">{{formData.description ? formData.description.length : 0}}/1000</text>
@@ -115,13 +126,14 @@
         <text class="form-label">预算/报酬</text>
         <view class="input-wrapper">
           <input 
-            class="input-field" 
+            class="input-field {{isLocked ? 'disabled' : ''}}" 
             placeholder="如：面议、200-500元、收益分成等" 
             placeholder-style="color:#bbb;font-size:28rpx;" 
             value="{{formData.budget}}" 
-            bindinput="onInput" 
+            bindinput="{{isLocked ? '' : 'onInput'}}" 
             data-field="budget" 
             maxlength="50" 
+            disabled="{{isLocked}}"
           />
         </view>
       </view>
@@ -150,17 +162,20 @@
       </view>
 
       <view class="form-item">
-        <text class="form-label">微信群</text>
-        <view class="input-wrapper">
-          <input 
-            class="input-field" 
-            placeholder="请输入微信号或群名" 
-            placeholder-style="color:#bbb;font-size:28rpx;" 
-            value="{{formData.teamWechat}}" 
-            bindinput="onInput" 
-            data-field="teamWechat" 
-            maxlength="50" 
-          />
+        <text class="form-label">微信群二维码</text>
+        <view class="wechat-qr-section">
+          <view class="wechat-qr-upload" wx:if="{{!formData.teamWechatQR}}" bindtap="chooseWechatQR">
+            <text class="wechat-qr-icon">+</text>
+            <text class="wechat-qr-text">上传群二维码</text>
+          </view>
+          <view class="wechat-qr-preview" wx:else>
+            <image class="wechat-qr-image" src="{{formData.teamWechatQR}}" mode="aspectFit" bindtap="previewWechatQR"></image>
+            <view class="wechat-qr-actions">
+              <text class="wechat-qr-tip">点击预览</text>
+              <view class="wechat-qr-replace" bindtap="chooseWechatQR">更换</view>
+              <view class="wechat-qr-delete" bindtap="removeWechatQR">删除</view>
+            </view>
+          </view>
         </view>
       </view>
 
@@ -182,7 +197,7 @@
     </view>
 
     <!-- 职位需求 -->
-    <view class="card" wx:if="{{!(formData.status === 'completed' || formData.status === 'published')}}">
+    <view class="card" wx:if="{{!isLocked}}">
       <view class="section-header">
         <view class="section-title-left">职位需求</view>
         <view class="add-btn" bindtap="showPositionPicker">+ 添加职位</view>
@@ -217,8 +232,8 @@
     </view>
 
     <!-- 制作中/已发布提示 -->
-    <view class="card tip-card" wx:if="{{isEdit && (formData.status === 'completed' || formData.status === 'published')}}">
-      <text class="tip-text">当前为{{formData.status === 'completed' ? '制作中' : '已发布'}}状态，仅可修改状态和发布链接</text>
+    <view class="card tip-card" wx:if="{{isLocked}}">
+      <text class="tip-text">当前为{{formData.status === 'completed' ? '制作中' : '已发布'}}状态，仅可修改状态、发布链接和团队交流渠道</text>
     </view>
 
     <!-- 状态管理（仅编辑模式显示） -->

@@ -7,7 +7,8 @@ Page({
     userInfo: null,
     showLoginModal: false,
     myRecruitmentCount: 0,
-    unreadCount: 0
+    unreadCount: 0,
+    isAdmin: false
   },
 
   onLoad: function (options) {
@@ -38,6 +39,7 @@ Page({
 
     if (isLoggedIn) {
       this.loadUserData();
+      this.checkAdminStatus();
     }
   },
 
@@ -162,6 +164,41 @@ Page({
     }
     wx.navigateTo({
       url: '/pages/messages/messages'
+    });
+  },
+
+  // 检查是否为小程序管理员
+  checkAdminStatus: function () {
+    wx.cloud.callFunction({
+      name: 'feedback',
+      data: {
+        action: 'checkIsAdmin',
+        data: {}
+      }
+    }).then(res => {
+      if (res.result.success) {
+        this.setData({ isAdmin: res.result.isAdmin });
+      }
+    }).catch(err => {
+      console.error('检查管理员状态失败', err);
+    });
+  },
+
+  // 跳转到反馈页面
+  goToFeedback: function () {
+    wx.navigateTo({
+      url: '/pages/feedback/feedback'
+    });
+  },
+
+  // 跳转到反馈管理页面（管理员）
+  goToFeedbackList: function () {
+    if (!this.data.isAdmin) {
+      showError('无权限访问');
+      return;
+    }
+    wx.navigateTo({
+      url: '/pages/feedback-list/feedback-list'
     });
   },
 

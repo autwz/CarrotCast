@@ -44,7 +44,7 @@
             <text class="footer-text">{{formatDate(item.createTime)}}</text>
           </view>
           <view class="footer-right">
-            <text class="action-btn" bindtap="goToApplyList" data-id="{{item._id}}" data-title="{{item.title}}">申请列表</text>
+            <text class="action-btn action-btn-apply" bindtap="goToApplyList" data-id="{{item._id}}" data-title="{{item.title}}">管理申请<text class="pending-badge" wx:if="{{item.pendingApplyCount > 0}}">{{item.pendingApplyCount}}</text></text>
             <text class="action-btn" bindtap="goToEdit" data-id="{{item._id}}">编辑</text>
           </view>
         </view>

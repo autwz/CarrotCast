@@ -1,6 +1,5 @@
 const app = getApp();
 const { showLoading, hideLoading, showError, showSuccess, formatDate, getStatusText, getApplyStatusText, isExpired, copyText } = require('../../utils/util');
-const { ROLE_TYPES } = require('../../utils/constants');
 
 // 角色名称映射
 const ROLE_NAMES = {
@@ -26,18 +25,20 @@ Page({
     isParticipant: false,
     isFull: false,
     myApplyStatus: null,
+    pendingApplyCount: 0,
     showApplyModal: false,
     showRemoveModal: false,
     removeTarget: null,
-    roleTypes: ROLE_TYPES,
+    availableRoles: [],  // 有空缺的可选职位列表
+    allRolesWithStatus: [],  // 所有职位及空缺状态（用于展示）
     applyForm: {
       userNickname: '',
       userBio: '',
       workLink: '',
       musicPageLink: '',
       message: '',
-      applyRole: 'singer',
-      applyRoleName: '歌手'
+      applyRole: '',
+      applyRoleName: ''
     }
   },
 
@@ -77,7 +78,7 @@ Page({
         if (res.result.success) {
         const recruitment = res.result.data;
         const userInfo = app.globalData.userInfo;
-        const isAdmin = userInfo && recruitment.admins && recruitment.admins.includes(userInfo.openid);
+        const isAdmin = userInfo && (recruitment.creatorId === userInfo.openid || (recruitment.admins && recruitment.admins.includes(userInfo.openid)));
         
         // 判断是否为参与者（包括创建者）
         const isParticipant = userInfo && (
@@ -92,14 +93,21 @@ Page({
         const participantList = (recruitment.participantList || []).map(p => ({
           ...p,
           isCreator: p.userId === recruitment.creatorId,
-          roleName: p.role && p.role !== 'creator' ? (ROLE_NAMES[p.role] || p.role) : (p.isCreator ? '创建者' : '参与者')
+          roleName: p.isCreator ? '创建者' : (ROLE_NAMES[p.role] || p.role || '参与者')
         }));
         
-        // 处理职位需求，添加角色名称
-        const positionNeeds = (recruitment.positionNeeds || []).map(p => ({
-          ...p,
-          roleName: ROLE_NAMES[p.roleId] || p.roleId
-        }));
+        // 处理职位需求，添加角色名称和当前人数
+        const positionNeeds = (recruitment.positionNeeds || []).map(p => {
+          const currentCount = (recruitment.participantList || []).filter(
+            pp => pp.role === p.roleId && pp.status === 'approved' && pp.userId !== recruitment.creatorId
+          ).length;
+          return {
+            ...p,
+            roleName: ROLE_NAMES[p.roleId] || p.roleId,
+            currentCount,
+            isFull: currentCount >= p.count
+          };
+        });
         
         // 计算除创建者外的参与者数量（创建者不算职位需求中）
         const nonCreatorCount = participantList.filter(p => !p.isCreator).length;
@@ -112,6 +120,7 @@ Page({
           participantList,
           nonCreatorCount,
           roleCountMap: recruitment.roleCountMap || {},
+          pendingApplyCount: recruitment.pendingApplyCount || 0,
           isAdmin,
           isParticipant,
           isFull
@@ -122,8 +131,8 @@ Page({
           this.checkMyApplyStatus();
         }
         
-        // 如果招募已满且状态仍为招募中，提示是否进入制作中
-        if (isFull && recruitment.status === 'recruiting') {
+        // 如果招募已满且状态仍为招募中，仅管理员/创建者提示是否进入制作中
+        if (isFull && recruitment.status === 'recruiting' && isAdmin) {
           this.showCompletePrompt();
         }
       } else {
@@ -174,11 +183,70 @@ Page({
 
   // 显示申请弹窗
   showApplyModal: function () {
-    if (!this.data.isLoggedIn) {
+    const { isLoggedIn, recruitment, isFull, myApplyStatus } = this.data;
+    
+    if (!isLoggedIn) {
       this.goToLogin();
       return;
     }
-    this.setData({ showApplyModal: true });
+    
+    // 检查招募状态
+    if (recruitment.status === 'completed') {
+      showError('该招募已进入制作中阶段');
+      return;
+    }
+    if (recruitment.status === 'published') {
+      showError('该招募已发布，无法再申请');
+      return;
+    }
+    
+    // 检查职位是否已满
+    if (isFull) {
+      showError('该招募的职位已满');
+      return;
+    }
+    
+    // 检查是否已申请（待审核状态不允许再次申请）
+    if (myApplyStatus && myApplyStatus.status === 'pending') {
+      showError('您已提交申请，请等待审核');
+      return;
+    }
+    
+    // 根据职位需求计算可选职位
+    const positionNeeds = recruitment.positionNeeds || [];
+    
+    // 构建所有职位及空缺状态（positionNeeds 已包含 currentCount 和 isFull）
+    const allRolesWithStatus = positionNeeds.map(p => {
+      const currentCount = p.currentCount || 0;
+      const remainCount = p.count - currentCount;
+      return {
+        id: p.roleId,
+        name: p.roleName || ROLE_NAMES[p.roleId] || p.roleId,
+        count: p.count,
+        currentCount,
+        remainCount,
+        isFull: p.isFull || remainCount <= 0
+      };
+    });
+    
+    // 只保留有空缺的职位
+    const availableRoles = allRolesWithStatus.filter(r => !r.isFull);
+    
+    if (availableRoles.length === 0) {
+      showError('所有职位已满，无法申请');
+      return;
+    }
+    
+    // 默认选中第一个空缺职位
+    const defaultRole = availableRoles[0];
+    
+    this.setData({
+      allRolesWithStatus,
+      availableRoles,
+      'applyForm.applyRole': defaultRole.id,
+      'applyForm.applyRoleName': defaultRole.name,
+      showApplyModal: true
+    });
   },
 
   // 隐藏申请弹窗
@@ -308,6 +376,16 @@ Page({
   onCopyLink: function (e) {
     const link = e.currentTarget.dataset.link;
     copyText(link);
+  },
+
+  // 预览微信群二维码
+  previewTeamQR: function () {
+    const url = this.data.recruitment.teamWechatQR;
+    if (!url) return;
+    wx.previewImage({
+      urls: [url],
+      current: url
+    });
   },
 
   // 跳转到编辑页面

@@ -628,3 +628,132 @@
   font-size: 20rpx;
   margin-bottom: 0;
 }
+
+/* 制作中/已发布状态禁用样式 */
+.section-locked {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.type-selector.disabled {
+  pointer-events: none;
+}
+
+.type-selector.disabled .type-option {
+  opacity: 0.6;
+}
+
+.input-field.disabled,
+.textarea-field.disabled {
+  color: #999;
+  background: transparent;
+}
+
+.tags-input-wrapper.disabled {
+  pointer-events: none;
+}
+
+.tags-input-wrapper.disabled .tag-item {
+  opacity: 0.6;
+}
+
+.locked-mask {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 70rpx;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.locked-hint {
+  font-size: 26rpx;
+  color: #fff;
+}
+
+/* 微信群二维码上传 */
+.wechat-qr-section {
+  margin-top: 16rpx;
+}
+
+.wechat-qr-upload {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 200rpx;
+  height: 200rpx;
+  background: #f8f8f8;
+  border: 2rpx dashed #ddd;
+  border-radius: 12rpx;
+}
+
+.wechat-qr-upload:active {
+  background: #f0f0f0;
+}
+
+.wechat-qr-icon {
+  font-size: 48rpx;
+  color: #ccc;
+  line-height: 1;
+}
+
+.wechat-qr-text {
+  font-size: 22rpx;
+  color: #999;
+  margin-top: 8rpx;
+}
+
+.wechat-qr-preview {
+  display: flex;
+  align-items: flex-start;
+  gap: 20rpx;
+}
+
+.wechat-qr-image {
+  width: 200rpx;
+  height: 200rpx;
+  border-radius: 12rpx;
+  background: #f8f8f8;
+}
+
+.wechat-qr-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+  padding-top: 8rpx;
+}
+
+.wechat-qr-tip {
+  font-size: 22rpx;
+  color: #999;
+}
+
+.wechat-qr-replace,
+.wechat-qr-delete {
+  padding: 8rpx 20rpx;
+  border-radius: 16rpx;
+  font-size: 24rpx;
+  text-align: center;
+}
+
+.wechat-qr-replace {
+  background: #e6f7ff;
+  color: #1890ff;
+}
+
+.wechat-qr-replace:active {
+  opacity: 0.7;
+}
+
+.wechat-qr-delete {
+  background: #fff1f0;
+  color: #ff4d4f;
+}
+
+.wechat-qr-delete:active {
+  opacity: 0.7;
+}
