@@ -1,0 +1,321 @@
+<view class="page">
+  <view class="form-section">
+    <!-- 封面图片 -->
+    <view class="cover-section card">
+      <view class="section-title">{{isEdit ? '封面图片' : '封面图片'}}</view>
+      <view class="cover-picker" bindtap="chooseCover">
+        <image class="cover-image" src="{{formData.coverImage || '/images/default-cover.png'}}" mode="aspectFill"></image>
+        <view class="cover-mask">
+          <text class="cover-hint">{{formData.coverImage ? '点击更换封面' : '点击添加封面'}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 基本信息 -->
+    <view class="card">
+      <view class="section-title">基本信息</view>
+
+      <view class="form-item">
+        <text class="form-label">招募类型 <text class="required">*</text></text>
+        <view class="type-selector">
+          <view 
+            class="type-option {{formData.type === 'original' ? 'selected' : ''}}" 
+            bindtap="selectType"
+            data-type="original"
+          >
+            <text class="type-icon">🎵</text>
+            <text class="type-text">原创</text>
+          </view>
+          <view 
+            class="type-option {{formData.type === 'cover' ? 'selected' : ''}}" 
+            bindtap="selectType"
+            data-type="cover"
+          >
+            <text class="type-icon">🎤</text>
+            <text class="type-text">翻唱</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="form-item">
+        <text class="form-label">音乐类型 <text class="required">*</text></text>
+        <picker mode="selector" range="{{musicTypes}}" range-key="name" bindchange="selectMusicType">
+          <view class="picker-value">
+            <text class="{{formData.musicTypeName ? 'picker-text' : 'picker-placeholder'}}">
+              {{formData.musicTypeName || '请选择音乐类型'}}
+            </text>
+            <text class="picker-arrow">›</text>
+          </view>
+        </picker>
+      </view>
+
+      <view class="form-item">
+        <text class="form-label">标题 <text class="required">*</text></text>
+        <view class="input-wrapper">
+          <input 
+            class="input-field" 
+            placeholder="请输入招募标题" 
+            placeholder-style="color:#bbb;font-size:28rpx;" 
+            value="{{formData.title}}" 
+            bindinput="onInput" 
+            data-field="title" 
+            maxlength="50" 
+          />
+        </view>
+      </view>
+
+      <view class="form-item">
+        <text class="form-label">截止日期</text>
+        <picker mode="date" value="{{formData.deadline}}" bindchange="selectDeadline">
+          <view class="picker-value">
+            <text class="{{formData.deadline ? 'picker-text' : 'picker-placeholder'}}">
+              {{formData.deadline || '不设置截止日期'}}
+            </text>
+            <text class="picker-arrow">›</text>
+          </view>
+        </picker>
+      </view>
+
+      <view class="form-item">
+        <text class="form-label">标签</text>
+        <view class="tags-input-wrapper">
+          <view class="tags-list">
+            <view class="tag-item" wx:for="{{formData.tags}}" wx:key="index">
+              <text>{{item}}</text>
+              <view class="tag-delete" catchtap="removeTag" data-index="{{index}}">×</view>
+            </view>
+          </view>
+          <input class="tag-input" placeholder="输入标签后回车添加" placeholder-style="color:#bbb;font-size:26rpx;" bindconfirm="addTag" maxlength="10" />
+        </view>
+      </view>
+    </view>
+
+    <!-- 详细说明 -->
+    <view class="card">
+      <view class="section-title">详细说明</view>
+
+      <view class="form-item">
+        <text class="form-label">招募简介与需求</text>
+        <view class="textarea-wrapper">
+          <textarea 
+            class="textarea-field" 
+            placeholder="请详细描述招募简介与需求，如演唱要求、角色需求、设备要求、预算报酬等" 
+            placeholder-style="color:#bbb;font-size:28rpx;"
+            value="{{formData.description}}" 
+            bindinput="onInput" 
+            data-field="description" 
+            maxlength="1000"
+            auto-height
+          ></textarea>
+        </view>
+        <text class="char-count">{{formData.description ? formData.description.length : 0}}/1000</text>
+      </view>
+
+      <view class="form-item">
+        <text class="form-label">预算/报酬</text>
+        <view class="input-wrapper">
+          <input 
+            class="input-field" 
+            placeholder="如：面议、200-500元、收益分成等" 
+            placeholder-style="color:#bbb;font-size:28rpx;" 
+            value="{{formData.budget}}" 
+            bindinput="onInput" 
+            data-field="budget" 
+            maxlength="50" 
+          />
+        </view>
+      </view>
+    </view>
+
+    <!-- 团队交流渠道（参与者可见） -->
+    <view class="card">
+      <view class="section-header">
+        <view class="section-title-left">团队交流渠道</view>
+        <text class="section-hint participant-hint">仅参与者可见</text>
+      </view>
+      
+      <view class="form-item">
+        <text class="form-label">QQ群</text>
+        <view class="input-wrapper">
+          <input 
+            class="input-field" 
+            placeholder="请输入QQ群号" 
+            placeholder-style="color:#bbb;font-size:28rpx;" 
+            value="{{formData.teamQQ}}" 
+            bindinput="onInput" 
+            data-field="teamQQ" 
+            maxlength="20" 
+          />
+        </view>
+      </view>
+
+      <view class="form-item">
+        <text class="form-label">微信群</text>
+        <view class="input-wrapper">
+          <input 
+            class="input-field" 
+            placeholder="请输入微信号或群名" 
+            placeholder-style="color:#bbb;font-size:28rpx;" 
+            value="{{formData.teamWechat}}" 
+            bindinput="onInput" 
+            data-field="teamWechat" 
+            maxlength="50" 
+          />
+        </view>
+      </view>
+
+      <view class="form-item">
+        <text class="form-label">备注说明</text>
+        <view class="input-wrapper">
+          <textarea 
+            class="textarea-field" 
+            placeholder="如：进群暗号、联系方式、其他协作要求等" 
+            placeholder-style="color:#bbb;font-size:28rpx;" 
+            value="{{formData.teamNotes}}" 
+            bindinput="onInput" 
+            data-field="teamNotes" 
+            maxlength="200"
+            auto-height
+          ></textarea>
+        </view>
+      </view>
+    </view>
+
+    <!-- 职位需求 -->
+    <view class="card" wx:if="{{!(formData.status === 'completed' || formData.status === 'published')}}">
+      <view class="section-header">
+        <view class="section-title-left">职位需求</view>
+        <view class="add-btn" bindtap="showPositionPicker">+ 添加职位</view>
+      </view>
+      <text class="section-hint">可添加需要的角色（选填）</text>
+      
+      <view class="position-list" wx:if="{{formData.positionNeeds.length > 0}}">
+        <view class="position-item" wx:for="{{formData.positionNeeds}}" wx:key="index">
+          <view class="position-info">
+            <text class="position-name">{{item.roleName}}</text>
+          </view>
+          <view class="position-count">
+            <text class="count-label">需要</text>
+            <input 
+              type="number" 
+              class="count-input" 
+              value="{{item.count}}" 
+              bindinput="onPositionCountChange" 
+              data-index="{{index}}"
+              min="0"
+              max="99"
+            />
+            <text class="count-label">人</text>
+          </view>
+          <view class="position-delete" catchtap="removePosition" data-index="{{index}}">×</view>
+        </view>
+      </view>
+      
+      <view class="empty-position" wx:else>
+        <text class="empty-hint">暂未添加职位需求</text>
+      </view>
+    </view>
+
+    <!-- 制作中/已发布提示 -->
+    <view class="card tip-card" wx:if="{{isEdit && (formData.status === 'completed' || formData.status === 'published')}}">
+      <text class="tip-text">当前为{{formData.status === 'completed' ? '制作中' : '已发布'}}状态，仅可修改状态和发布链接</text>
+    </view>
+
+    <!-- 状态管理（仅编辑模式显示） -->
+    <view class="card" wx:if="{{isEdit}}">
+      <view class="section-title">状态管理</view>
+      
+      <view class="status-selector">
+        <view class="status-option {{formData.status === 'draft' ? 'selected' : ''}}" bindtap="selectStatus" data-status="draft">
+          <text class="status-name">草稿</text>
+          <text class="status-desc">仅自己可见</text>
+        </view>
+        <view class="status-option {{formData.status === 'recruiting' ? 'selected' : ''}}" bindtap="selectStatus" data-status="recruiting">
+          <text class="status-name">招募中</text>
+          <text class="status-desc">对外展示</text>
+        </view>
+        <view class="status-option {{formData.status === 'completed' ? 'selected' : ''}}" bindtap="selectStatus" data-status="completed">
+          <text class="status-name">制作中</text>
+          <text class="status-desc">开始制作</text>
+        </view>
+        <view class="status-option {{formData.status === 'published' ? 'selected' : ''}}" bindtap="selectStatus" data-status="published">
+          <text class="status-name">已发布</text>
+          <text class="status-desc">作品完成</text>
+        </view>
+      </view>
+
+      <!-- 发布链接（仅状态为已发布时显示） -->
+      <view class="publish-url-section" wx:if="{{formData.status === 'published'}}">
+        <view class="form-item">
+          <text class="form-label">作品发布链接</text>
+          <view class="input-wrapper">
+            <input 
+              class="input-field" 
+              placeholder="请输入作品发布链接（如网易云、QQ音乐等）" 
+              placeholder-style="color:#bbb;font-size:28rpx;" 
+              value="{{formData.publishUrl}}" 
+              bindinput="onInput" 
+              data-field="publishUrl" 
+            />
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 底部按钮（编辑模式） -->
+    <view class="action-section safe-area-bottom" wx:if="{{isEdit}}">
+      <view class="btn-action-group">
+        <view class="btn btn-danger {{deleting ? 'btn-loading' : ''}}" bindtap="deleteRecruitment">
+          <text wx:if="{{!deleting}}">删除</text>
+          <text wx:else>删除中...</text>
+        </view>
+        <view class="btn btn-primary {{saving ? 'btn-loading' : ''}}" bindtap="saveChanges">
+          <text wx:if="{{!saving}}">保存修改</text>
+          <text wx:else>保存中...</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 底部按钮（创建模式） -->
+    <view class="action-section safe-area-bottom" wx:else>
+      <view class="btn-action-group">
+        <view class="btn btn-outline {{saving ? 'btn-loading' : ''}}" bindtap="saveAsDraft">
+          <text wx:if="{{!saving}}">保存草稿</text>
+          <text wx:else>保存中...</text>
+        </view>
+        <view class="btn btn-primary {{publishing ? 'btn-loading' : ''}}" bindtap="publish">
+          <text wx:if="{{!publishing}}">发布招募</text>
+          <text wx:else>发布中...</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>
+
+<!-- 职位选择弹窗 -->
+<view class="modal-mask {{showPositionModal ? 'modal-active' : ''}}" catchtap="hidePositionPicker">
+  <view class="modal-container" catchtap="preventBubble">
+    <view class="modal-header">
+      <text class="modal-title">选择职位类型</text>
+      <view class="modal-close" catchtap="hidePositionPicker">×</view>
+    </view>
+    <scroll-view class="modal-body" scroll-y="true">
+      <view class="position-picker-list">
+        <view 
+          class="position-picker-item {{selectedPositionIndex === index ? 'selected' : ''}}"
+          wx:for="{{availablePositions}}"
+          wx:key="index"
+          catchtap="selectPosition"
+          data-index="{{index}}"
+        >
+          <text class="position-picker-name">{{item.name}}</text>
+          <text class="position-picker-desc">{{item.desc}}</text>
+        </view>
+      </view>
+    </scroll-view>
+    <view class="modal-footer safe-area-bottom">
+      <view class="btn btn-outline" catchtap="hidePositionPicker">取消</view>
+      <view class="btn btn-primary {{selectedPositionIndex < 0 ? 'btn-disabled' : ''}}" catchtap="confirmAddPosition">添加</view>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,43 @@
+<view class="page">
+  <view class="message-card card" wx:if="{{message}}">
+    <!-- 消息头部 -->
+    <view class="message-header">
+      <view class="header-icon">
+        <image src="/images/icons/{{getMessageIcon(message.type)}}.png" mode="aspectFit"></image>
+      </view>
+      <view class="header-content">
+        <text class="message-title">{{message.title}}</text>
+        <text class="message-time">{{formatDateTime(message.createTime)}}</text>
+      </view>
+    </view>
+
+    <view class="divider"></view>
+
+    <!-- 消息内容 -->
+    <view class="message-body">
+      <text class="message-content">{{message.content}}</text>
+    </view>
+
+    <!-- 关联招募 -->
+    <view class="related-recruitment" wx:if="{{message.recruitmentId}}" bindtap="goToRecruitment">
+      <text class="recruitment-label">关联招募</text>
+      <view class="recruitment-info">
+        <text class="recruitment-title">{{message.recruitmentTitle || '点击查看'}}</text>
+        <text class="recruitment-arrow">›</text>
+      </view>
+    </view>
+
+    <view class="divider"></view>
+
+    <!-- 操作按钮 -->
+    <view class="action-section">
+      <button class="btn btn-primary" bindtap="goToRecruitment" wx:if="{{message.recruitmentId}}">查看招募</button>
+      <button class="btn btn-outline" bindtap="deleteMessage">删除消息</button>
+    </view>
+  </view>
+
+  <!-- 加载状态 -->
+  <view class="loading-state" wx:if="{{loading}}">
+    <text>加载中...</text>
+  </view>
+</view>

@@ -1,0 +1,100 @@
+<view class="page">
+  <!-- 标签栏 -->
+  <view class="tabs">
+    <view 
+      class="tab {{currentTab === 'created' ? 'active' : ''}}" 
+      bindtap="switchTab"
+      data-tab="created"
+    >
+      我发起的 ({{createdList.length}})
+    </view>
+    <view 
+      class="tab {{currentTab === 'participated' ? 'active' : ''}}" 
+      bindtap="switchTab"
+      data-tab="participated"
+    >
+      我参与的 ({{participatedList.length}})
+    </view>
+  </view>
+
+  <!-- 列表内容 -->
+  <scroll-view class="list-container" scroll-y>
+    <!-- 我发起的 -->
+    <view wx:if="{{currentTab === 'created'}}">
+      <view class="recruitment-card card" 
+        wx:for="{{createdList}}" 
+        wx:key="_id"
+        bindtap="goToDetail"
+        data-id="{{item._id}}"
+      >
+        <view class="card-header">
+          <image class="card-cover" src="{{item.coverImage || '/images/default-cover.png'}}" mode="aspectFill"></image>
+          <view class="header-info">
+            <text class="card-title">{{item.title}}</text>
+            <view class="card-meta">
+              <text class="type-tag type-{{item.type}}">{{item.type === 'original' ? '原创' : '翻唱'}}</text>
+              <text class="status-tag status-{{item.status}}">{{getStatusText(item.status)}}</text>
+            </view>
+          </view>
+          <view class="leader-badge">👑</view>
+        </view>
+        
+        <view class="card-footer">
+          <view class="footer-left">
+            <text class="footer-text">{{formatDate(item.createTime)}}</text>
+          </view>
+          <view class="footer-right">
+            <text class="action-btn" bindtap="goToApplyList" data-id="{{item._id}}" data-title="{{item.title}}">申请列表</text>
+            <text class="action-btn" bindtap="goToEdit" data-id="{{item._id}}">编辑</text>
+          </view>
+        </view>
+      </view>
+      
+      <view class="empty-state" wx:if="{{createdList.length === 0}}">
+        <image src="/images/icons/empty.png" mode="aspectFit"></image>
+        <text>您还没有发起的招募</text>
+        <button class="btn btn-primary btn-small" bindtap="goToCreate">立即发起</button>
+      </view>
+    </view>
+
+    <!-- 我参与的 -->
+    <view wx:if="{{currentTab === 'participated'}}">
+      <view class="recruitment-card card" 
+        wx:for="{{participatedList}}" 
+        wx:key="_id"
+        bindtap="goToDetail"
+        data-id="{{item._id}}"
+      >
+        <view class="card-header">
+          <image class="card-cover" src="{{item.coverImage || '/images/default-cover.png'}}" mode="aspectFill"></image>
+          <view class="header-info">
+            <text class="card-title">{{item.title}}</text>
+            <view class="card-meta">
+              <text class="type-tag type-{{item.type}}">{{item.type === 'original' ? '原创' : '翻唱'}}</text>
+              <text class="status-tag status-{{item.status}}">{{getStatusText(item.status)}}</text>
+            </view>
+          </view>
+          <text class="owner-badge" wx:if="{{item.isCreator}}">👑</text>
+        </view>
+        
+        <view class="card-footer">
+          <view class="footer-left">
+            <text class="footer-text">发起人: {{item.creatorNickname || '匿名'}}</text>
+          </view>
+          <view class="footer-right">
+            <text class="view-btn">查看详情 ›</text>
+          </view>
+        </view>
+      </view>
+      
+      <view class="empty-state" wx:if="{{participatedList.length === 0}}">
+        <image src="/images/icons/empty.png" mode="aspectFit"></image>
+        <text>您还没有参与的招募</text>
+        <button class="btn btn-primary btn-small" bindtap="goToHome">去首页看看</button>
+      </view>
+    </view>
+  </scroll-view>
+
+  <!-- 发起招募按钮 -->
+  <view class="float-btn" bindtap="goToCreate">发起招募</view>
+</view>

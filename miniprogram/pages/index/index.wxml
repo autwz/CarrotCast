@@ -1,0 +1,101 @@
+<view class="page">
+  <!-- 搜索栏 -->
+  <view class="search-bar">
+    <view class="search-input-wrapper">
+      <image class="search-icon" src="/images/icons/search.png" mode="aspectFit"></image>
+      <input 
+        class="search-input" 
+        placeholder="搜索招募"
+        value="{{keyword}}"
+        bindinput="onSearchInput"
+        bindconfirm="onSearch"
+      />
+    </view>
+  </view>
+
+  <!-- 筛选栏 -->
+  <view class="filter-bar">
+    <view class="filter-tabs">
+      <view 
+        class="filter-tab {{currentType === '' ? 'active' : ''}}" 
+        bindtap="onFilterType"
+        data-type=""
+      >全部</view>
+      <view 
+        class="filter-tab {{currentType === 'original' ? 'active' : ''}}" 
+        bindtap="onFilterType"
+        data-type="original"
+      >原创</view>
+      <view 
+        class="filter-tab {{currentType === 'cover' ? 'active' : ''}}" 
+        bindtap="onFilterType"
+        data-type="cover"
+      >翻唱</view>
+    </view>
+    <picker mode="selector" range="{{statusList}}" range-key="name" bindchange="onStatusChange">
+      <view class="status-picker">
+        {{selectedStatus.name}}
+        <image class="arrow-icon" src="/images/icons/arrow-down.png" mode="aspectFit"></image>
+      </view>
+    </picker>
+  </view>
+
+  <!-- 招募列表 -->
+  <scroll-view 
+    class="recruitment-list" 
+    scroll-y 
+    enable-back-to-top
+    bindscrolltolower="onLoadMore"
+  >
+    <block wx:if="{{recruitmentList.length > 0}}">
+      <view class="card-grid">
+        <view 
+          class="recruitment-card" 
+          wx:for="{{recruitmentList}}" 
+          wx:key="_id"
+          bindtap="goToDetail"
+          data-id="{{item._id}}"
+        >
+          <view class="card-cover">
+            <image 
+              class="cover-image" 
+              src="{{item.coverImage || '/images/default-cover.png'}}" 
+              mode="aspectFill"
+              lazy-load
+            ></image>
+            <!-- 类型和状态标签 -->
+            <view class="card-tags-row">
+              <view class="card-type type-{{item.type}}">
+                {{item.type === 'original' ? '原创' : '翻唱'}}
+              </view>
+              <view class="card-status-tag status-{{item.status}}">
+                {{item.status === 'recruiting' ? '招募中' : (item.status === 'completed' ? '招募完成' : (item.status === 'published' ? '发布完成' : item.status))}}
+              </view>
+            </view>
+          </view>
+          <view class="card-content">
+            <view class="card-title">{{item.title}}</view>
+            <view class="card-meta">
+              <text class="music-tag">{{item.musicTypeName || item.musicType || '未知'}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+      
+      <!-- 加载更多 -->
+      <view class="load-more" wx:if="{{hasMore}}">
+        <text wx:if="{{loading}}">加载中...</text>
+        <text wx:else bindtap="onLoadMore">加载更多</text>
+      </view>
+      <view class="no-more" wx:if="{{!hasMore && recruitmentList.length > 0}}">
+        <text>没有更多了</text>
+      </view>
+    </block>
+    
+    <!-- 空状态 -->
+    <view class="empty-state" wx:else>
+      <image src="/images/icons/empty.png" mode="aspectFit"></image>
+      <text>暂无招募信息</text>
+    </view>
+  </scroll-view>
+</view>

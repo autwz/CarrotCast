@@ -1,0 +1,293 @@
+/* 个人中心样式 */
+.page {
+  min-height: 100vh;
+  background: #f5f5f5;
+  padding: 24rpx;
+}
+
+/* 未登录状态 */
+.login-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 100rpx 0;
+}
+
+.login-avatar {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 50%;
+  margin-bottom: 30rpx;
+  opacity: 0.5;
+}
+
+.login-hint {
+  font-size: 28rpx;
+  color: #999;
+  margin-bottom: 40rpx;
+}
+
+.login-btn {
+  width: 300rpx;
+}
+
+/* 用户信息卡片 */
+.card {
+  background: #fff;
+  border-radius: 20rpx;
+  padding: 30rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.05);
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  padding-bottom: 30rpx;
+  border-bottom: 1rpx solid #eee;
+}
+
+.user-avatar {
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: 50%;
+  margin-right: 24rpx;
+}
+
+.user-detail {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.user-nickname {
+  font-size: 34rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 8rpx;
+}
+
+.user-bio {
+  font-size: 26rpx;
+  color: #999;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 400rpx;
+}
+
+.edit-icon {
+  font-size: 40rpx;
+  color: #ccc;
+}
+
+/* 联系信息 - 每行显示 */
+.contact-info {
+  padding-top: 24rpx;
+}
+
+.contact-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #f5f5f5;
+}
+
+.contact-row:last-child {
+  border-bottom: none;
+}
+
+.contact-label {
+  font-size: 28rpx;
+  color: #666;
+}
+
+.contact-value {
+  font-size: 28rpx;
+  color: #333;
+}
+
+.contact-empty {
+  font-size: 26rpx;
+  color: #FF6B6B;
+}
+
+/* 功能菜单 */
+.menu-section {
+  padding: 0;
+}
+
+.menu-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 30rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.menu-item:last-child {
+  border-bottom: none;
+}
+
+.menu-left {
+  display: flex;
+  align-items: center;
+}
+
+.menu-icon {
+  width: 44rpx;
+  height: 44rpx;
+  margin-right: 16rpx;
+}
+
+.menu-text {
+  font-size: 30rpx;
+  color: #333;
+}
+
+.menu-right {
+  display: flex;
+  align-items: center;
+}
+
+.menu-badge {
+  padding: 4rpx 16rpx;
+  background: #f0f0f0;
+  border-radius: 20rpx;
+  font-size: 24rpx;
+  color: #666;
+  margin-right: 12rpx;
+}
+
+.menu-badge.badge-red {
+  background: #FF4D4F;
+  color: #fff;
+}
+
+.menu-arrow {
+  font-size: 32rpx;
+  color: #ccc;
+}
+
+/* 创建招募入口 */
+.create-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.create-content {
+  display: flex;
+  align-items: center;
+}
+
+.create-icon {
+  width: 64rpx;
+  height: 64rpx;
+  margin-right: 20rpx;
+}
+
+.create-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.create-title {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 6rpx;
+}
+
+.create-hint {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.create-arrow {
+  font-size: 40rpx;
+  color: #ccc;
+}
+
+/* 关于 */
+.about-section {
+  text-align: center;
+  padding: 40rpx;
+}
+
+.about-text {
+  font-size: 24rpx;
+  color: #ccc;
+}
+
+/* 弹窗样式 */
+.modal-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.modal-mask.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.modal-content {
+  background: #fff;
+  border-radius: 24rpx;
+  overflow: hidden;
+}
+
+.modal-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 560rpx;
+}
+
+.modal-header {
+  padding: 30rpx;
+  text-align: center;
+  border-bottom: 1rpx solid #eee;
+}
+
+.modal-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.modal-body {
+  padding: 30rpx;
+  text-align: center;
+}
+
+.modal-text {
+  font-size: 28rpx;
+  color: #666;
+}
+
+.modal-link {
+  font-size: 28rpx;
+  color: #1890ff;
+}
+
+.modal-footer {
+  display: flex;
+  padding: 20rpx 30rpx;
+  border-top: 1rpx solid #eee;
+}
+
+.modal-footer .btn {
+  flex: 1;
+  margin: 0 10rpx;
+}

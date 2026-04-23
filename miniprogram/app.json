@@ -1,0 +1,43 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/recruitment-detail/recruitment-detail",
+    "pages/user/user",
+    "pages/edit-profile/edit-profile",
+    "pages/my-recruitments/my-recruitments",
+    "pages/recruitment-form/recruitment-form",
+    "pages/apply-list/apply-list",
+    "pages/messages/messages",
+    "pages/message-detail/message-detail"
+  ],
+  "window": {
+    "backgroundColor": "#F6F6F6",
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#FF6B6B",
+    "navigationBarTitleText": "CarrotCast 萝卜坑",
+    "navigationBarTextStyle": "white"
+  },
+  "sitemapLocation": "sitemap.json",
+  "style": "v2",
+  "lazyCodeLoading": "requiredComponents",
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#FF6B6B",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页",
+        "iconPath": "images/icons/home.png",
+        "selectedIconPath": "images/icons/home-active.png"
+      },
+      {
+        "pagePath": "pages/user/user",
+        "text": "我的",
+        "iconPath": "images/icons/usercenter.png",
+        "selectedIconPath": "images/icons/usercenter-active.png"
+      }
+    ]
+  }
+}

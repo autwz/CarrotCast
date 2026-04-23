@@ -1,0 +1,280 @@
+<view class="page">
+  <block wx:if="{{!loading}}">
+    <!-- 封面图 -->
+    <view class="cover-section">
+      <image class="cover-image" src="{{recruitment.coverImage || '/images/default-cover.png'}}" mode="aspectFill"></image>
+      <view class="cover-overlay">
+        <view class="cover-type type-{{recruitment.type}}">
+          {{recruitment.type === 'original' ? '原创' : '翻唱'}}
+        </view>
+        <view class="cover-status status-{{recruitment.status}}">
+          {{getStatusText(recruitment.status)}}
+        </view>
+      </view>
+    </view>
+
+    <!-- 基本信息 -->
+    <view class="info-section card">
+      <view class="info-title">{{recruitment.title}}</view>
+      
+      <view class="info-creator" bindtap="goToUserProfile" data-openid="{{recruitment.creatorId}}">
+        <image class="creator-avatar" src="{{recruitment.creatorInfo.avatar || '/images/icons/avatar.png'}}" mode="aspectFill"></image>
+        <view class="creator-detail">
+          <text class="creator-name">{{recruitment.creatorInfo.nickname || '匿名用户'}}</text>
+          <text class="creator-label">创建者</text>
+        </view>
+      </view>
+
+      <view class="divider"></view>
+
+      <view class="info-item">
+        <text class="info-label">音乐类型</text>
+        <text class="info-value">{{recruitment.musicTypeName || recruitment.musicType || '未设置'}}</text>
+      </view>
+
+      <view class="info-item">
+        <text class="info-label">预算/报酬</text>
+        <text class="info-value budget-value">{{recruitment.budget || '面议'}}</text>
+      </view>
+
+      <view class="info-item">
+        <text class="info-label">招募人数</text>
+        <text class="info-value">{{nonCreatorCount}} / {{recruitment.totalNeededCount || 0}}人</text>
+      </view>
+
+      <view class="info-item">
+        <text class="info-label">截止日期</text>
+        <text class="info-value {{recruitment.deadline && isExpired(recruitment.deadline) ? 'expired' : ''}}">
+          {{recruitment.deadline || '长期有效'}}
+        </text>
+      </view>
+
+      <view class="info-tags" wx:if="{{recruitment.tags && recruitment.tags.length > 0}}">
+        <text class="info-label">标签</text>
+        <view class="tags-list">
+          <text class="tag" wx:for="{{recruitment.tags}}" wx:key="index">{{item}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 职位需求 -->
+    <view class="card" wx:if="{{recruitment.positionNeeds && recruitment.positionNeeds.length > 0}}">
+      <view class="section-title">职位需求</view>
+      <view class="position-demand-list">
+        <view class="position-demand-item" wx:for="{{recruitment.positionNeeds}}" wx:key="roleId">
+          <view class="position-demand-info">
+            <text class="position-demand-name">{{item.roleName}}</text>
+            <text class="position-demand-desc">{{item.count}}人</text>
+          </view>
+          <view class="position-demand-status">
+            <text class="current-count">{{roleCountMap[item.roleId] || 0}}</text>
+            <text class="total-count">/ {{item.count}}</text>
+            <view class="demand-badge {{(roleCountMap[item.roleId] || 0) >= item.count ? 'full' : 'need'}}">
+              {{(roleCountMap[item.roleId] || 0) >= item.count ? '已满' : '招募中'}}
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 招募简介 -->
+    <view class="card" wx:if="{{recruitment.description}}">
+      <view class="section-title">招募简介</view>
+      <view class="description-text">{{recruitment.description}}</view>
+    </view>
+
+    <!-- 详细说明 -->
+    <view class="card" wx:if="{{recruitment.requirements}}">
+      <view class="section-title">详细说明</view>
+      <view class="description-text">{{recruitment.requirements}}</view>
+    </view>
+
+    <!-- 参与者专属信息 -->
+    <view class="card participant-card" wx:if="{{isParticipant && (recruitment.teamQQ || recruitment.teamWechat || recruitment.teamNotes)}}">
+      <view class="section-header">
+        <text class="section-title">团队交流渠道</text>
+        <view class="participant-badge">参与者可见</view>
+      </view>
+      
+      <!-- QQ群 -->
+      <view class="team-channel" wx:if="{{recruitment.teamQQ}}">
+        <text class="channel-label">QQ群</text>
+        <text class="channel-value">{{recruitment.teamQQ}}</text>
+      </view>
+      
+      <!-- 微信群 -->
+      <view class="team-channel" wx:if="{{recruitment.teamWechat}}">
+        <text class="channel-label">微信</text>
+        <text class="channel-value">{{recruitment.teamWechat}}</text>
+      </view>
+      
+      <!-- 备注 -->
+      <view class="team-notes" wx:if="{{recruitment.teamNotes}}">
+        <text class="notes-label">备注说明</text>
+        <text class="notes-text">{{recruitment.teamNotes}}</text>
+      </view>
+    </view>
+
+    <!-- 作品发布链接（已发布状态显示） -->
+    <view class="card" wx:if="{{recruitment.status === 'published' && recruitment.publishUrl}}">
+      <view class="section-title">作品发布</view>
+      <view class="publish-link" bindtap="onCopyLink" data-link="{{recruitment.publishUrl}}">
+        <image class="link-icon" src="/images/icons/link.png" mode="aspectFit"></image>
+        <text class="link-text publish-url-text">{{recruitment.publishUrl}}</text>
+        <text class="link-tip">点击复制</text>
+      </view>
+    </view>
+
+    <!-- 参与者列表 -->
+    <view class="participants-section card">
+      <view class="section-header">
+        <text class="section-title">参与者 ({{participantList.length}})</text>
+        <view class="admin-actions" wx:if="{{isAdmin}}">
+          <view class="action-btn" bindtap="goToApplyList">管理申请</view>
+        </view>
+      </view>
+
+      <view class="participants-list" wx:if="{{participantList.length > 0}}">
+        <view class="participant-item" wx:for="{{participantList}}" wx:key="_id" bindtap="goToUserProfile" data-openid="{{item.userId}}">
+          <view class="participant-main">
+            <image class="participant-avatar" src="{{item.avatar || '/images/icons/avatar.png'}}" mode="aspectFill"></image>
+            <view class="participant-info">
+              <text class="participant-name">{{item.nickname || '匿名用户'}}</text>
+              <text class="participant-role">{{item.roleName}}</text>
+            </view>
+          </view>
+          <!-- 管理员可移除非创建者 -->
+          <view class="remove-btn" wx:if="{{isAdmin && !item.isCreator}}" catchtap="onRemoveParticipant" data-userid="{{item.userId}}" data-nickname="{{item.nickname || '该用户'}}">
+            移除
+          </view>
+        </view>
+      </view>
+
+      <view class="empty-participants" wx:else>
+        <text>暂无参与者，快来加入吧</text>
+      </view>
+    </view>
+
+    <!-- 底部操作栏 -->
+    <view class="bottom-bar safe-area-bottom">
+      <!-- 编辑招募按钮（管理员专属，显示在左侧） -->
+      <view class="edit-btn-wrap" wx:if="{{isAdmin}}">
+        <view class="btn btn-edit" bindtap="goToEdit">编辑招募</view>
+      </view>
+      
+      <!-- 右侧操作区 -->
+      <view class="action-right">
+        <!-- 申请状态提示 -->
+        <view class="status-hint" wx:if="{{myApplyStatus && myApplyStatus.status !== 'approved' && isLoggedIn}}">
+          <text class="status-text {{myApplyStatus.status}}">{{getApplyStatusText(myApplyStatus.status)}}</text>
+        </view>
+        
+        <!-- 操作按钮组 -->
+        <view class="btn-group">
+          <!-- 未登录 -->
+          <view class="btn btn-primary" wx:if="{{!isLoggedIn}}" bindtap="goToLogin">登录后申请加入</view>
+          
+          <!-- 已加入 -->
+          <view class="btn btn-success" wx:elif="{{myApplyStatus && myApplyStatus.status === 'approved'}}">已加入</view>
+          
+          <!-- 等待审核 -->
+          <view class="btn btn-pending" wx:elif="{{myApplyStatus && myApplyStatus.status === 'pending'}}">等待审核</view>
+          
+          <!-- 未申请 / 重新申请 -->
+          <view class="btn btn-apply" wx:else bindtap="showApplyModal">
+            {{myApplyStatus && myApplyStatus.status === 'rejected' ? '重新申请' : '申请加入'}}
+          </view>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <!-- 加载状态 -->
+  <view class="loading-state" wx:if="{{loading}}">
+    <text>加载中...</text>
+  </view>
+</view>
+
+<!-- 移除参与者确认弹窗 -->
+<view class="modal-mask {{showRemoveModal ? 'show' : ''}}" bindtap="hideRemoveModal">
+  <view class="modal-content confirm-modal" catchtap="preventBubble">
+    <view class="modal-header">
+      <text class="modal-title">确认移除</text>
+      <view class="modal-close" bindtap="hideRemoveModal">✕</view>
+    </view>
+    <view class="modal-body">
+      <view class="confirm-text">
+        确定要移除 <text class="highlight">{{removeTarget.nickname}}</text> 吗？
+      </view>
+      <view class="confirm-tip">移除后该用户可以重新申请加入</view>
+    </view>
+    <view class="modal-footer">
+      <button class="btn btn-outline" bindtap="hideRemoveModal">取消</button>
+      <button class="btn btn-danger" bindtap="confirmRemove">确认移除</button>
+    </view>
+  </view>
+</view>
+
+<!-- 申请加入弹窗 -->
+<view class="modal-mask {{showApplyModal ? 'show' : ''}}" bindtap="hideApplyModal">
+  <view class="modal-content" catchtap="preventBubble">
+    <view class="modal-header">
+      <text class="modal-title">申请加入</text>
+      <view class="modal-close" bindtap="hideApplyModal">✕</view>
+    </view>
+    
+    <view class="modal-body">
+      <!-- 申请职位选择 -->
+      <view class="input-item">
+        <text class="input-label">申请职位 <text class="required">*</text></text>
+        <view class="role-selector">
+          <view 
+            class="role-option {{applyForm.applyRole === item.id ? 'selected' : ''}}" 
+            wx:for="{{roleTypes}}" 
+            wx:key="id"
+            bindtap="onSelectRole" 
+            data-roleid="{{item.id}}"
+            data-rolename="{{item.name}}"
+          >
+            <text class="role-name">{{item.name}}</text>
+            <text class="role-desc">{{item.desc}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="input-item">
+        <text class="input-label">昵称</text>
+        <input class="input-field" placeholder="请输入昵称" value="{{applyForm.userNickname}}" bindinput="onApplyInput" data-field="userNickname" />
+      </view>
+
+      <view class="input-item">
+        <text class="input-label">简介</text>
+        <textarea class="input-textarea" placeholder="简单介绍一下自己" value="{{applyForm.userBio}}" bindinput="onApplyInput" data-field="userBio" maxlength="200"></textarea>
+      </view>
+
+      <view class="input-item">
+        <text class="input-label">作品链接 <text class="optional">(选填)</text></text>
+        <input class="input-field" placeholder="可粘贴您的作品链接" value="{{applyForm.workLink}}" bindinput="onApplyInput" data-field="workLink" />
+      </view>
+
+      <view class="input-item">
+        <text class="input-label">音乐主页链接 <text class="optional">(选填)</text></text>
+        <input class="input-field" placeholder="如5sing、网易云音乐等" value="{{applyForm.musicPageLink}}" bindinput="onApplyInput" data-field="musicPageLink" />
+      </view>
+
+      <view class="input-item">
+        <text class="input-label">留言 <text class="optional">(选填)</text></text>
+        <textarea class="input-textarea" placeholder="想对发起者说些什么？" value="{{applyForm.message}}" bindinput="onApplyInput" data-field="message" maxlength="500"></textarea>
+      </view>
+
+      <view class="link-tip" wx:if="{{applyForm.workLink || applyForm.musicPageLink}}">
+        <text>链接仅支持复制后跳转，请确认链接格式正确</text>
+      </view>
+    </view>
+
+    <view class="modal-footer">
+      <button class="btn btn-outline" bindtap="hideApplyModal">取消</button>
+      <button class="btn btn-primary" bindtap="submitApply">提交申请</button>
+    </view>
+  </view>
+</view>

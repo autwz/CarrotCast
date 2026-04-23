@@ -1,0 +1,124 @@
+<view class="page">
+  <!-- 招募信息 -->
+  <view class="recruitment-header card">
+    <text class="recruitment-title">{{recruitmentTitle}}</text>
+  </view>
+
+  <!-- 标签栏 -->
+  <view class="tabs">
+    <view 
+      class="tab {{currentTab === 'pending' ? 'active' : ''}}" 
+      bindtap="switchTab"
+      data-tab="pending"
+    >
+      待审核 ({{pendingCount}})
+    </view>
+    <view 
+      class="tab {{currentTab === 'approved' ? 'active' : ''}}" 
+      bindtap="switchTab"
+      data-tab="approved"
+    >
+      已通过 ({{approvedCount}})
+    </view>
+    <view 
+      class="tab {{currentTab === 'rejected' ? 'active' : ''}}" 
+      bindtap="switchTab"
+      data-tab="rejected"
+    >
+      已拒绝 ({{rejectedCount}})
+    </view>
+  </view>
+
+  <!-- 申请列表 -->
+  <scroll-view class="list-container" scroll-y>
+    <view class="apply-list">
+      <view class="apply-card card" wx:for="{{filteredList}}" wx:key="_id">
+        <view class="apply-header">
+          <view class="applicant-info" bindtap="setAdmin" data-userid="{{item.userId}}" data-nickname="{{item.userNickname}}">
+            <image class="applicant-avatar" src="{{item.userAvatar || '/images/icons/avatar.png'}}" mode="aspectFill"></image>
+            <view class="applicant-detail">
+              <text class="applicant-name">{{item.userNickname || '匿名用户'}}</text>
+              <view class="apply-meta">
+                <text class="apply-role" wx:if="{{item.applyRole}}">{{item.applyRoleName || item.applyRole}}</text>
+                <text class="apply-time">{{formatDate(item.applyTime)}}</text>
+              </view>
+            </view>
+            <text class="admin-badge" wx:if="{{item.isAdmin}}">👑 管理员</text>
+          </view>
+        </view>
+
+        <view class="apply-body">
+          <view class="apply-bio" wx:if="{{item.userBio}}">
+            <text class="bio-label">简介：</text>
+            <text class="bio-text">{{item.userBio}}</text>
+          </view>
+
+          <view class="apply-links" wx:if="{{item.workLink || item.musicPageLink}}">
+            <view class="link-item" wx:if="{{item.workLink}}" bindtap="copyLink" data-link="{{item.workLink}}">
+              <text class="link-label">作品链接：</text>
+              <text class="link-value">{{item.workLink}}</text>
+              <text class="link-action">复制</text>
+            </view>
+            <view class="link-item" wx:if="{{item.musicPageLink}}" bindtap="copyLink" data-link="{{item.musicPageLink}}">
+              <text class="link-label">音乐主页：</text>
+              <text class="link-value">{{item.musicPageLink}}</text>
+              <text class="link-action">复制</text>
+            </view>
+          </view>
+
+          <view class="apply-message" wx:if="{{item.message}}">
+            <text class="message-label">留言：</text>
+            <text class="message-text">{{item.message}}</text>
+          </view>
+
+          <view class="review-info" wx:if="{{item.status !== 'pending'}}">
+            <view class="review-status status-{{item.status}}">
+              {{item.status === 'approved' ? '已通过' : '已拒绝'}}
+            </view>
+            <text class="review-message" wx:if="{{item.reviewMessage}}">{{item.reviewMessage}}</text>
+          </view>
+        </view>
+
+        <!-- 待审核操作 -->
+        <view class="apply-actions" wx:if="{{item.status === 'pending' && isAdmin}}">
+          <button class="btn btn-sm btn-outline" bindtap="showReviewModal" data-item="{{item}}" data-action="reject">拒绝</button>
+          <button class="btn btn-sm btn-primary" bindtap="showReviewModal" data-item="{{item}}" data-action="approve">通过</button>
+        </view>
+
+        <!-- 设置管理员 -->
+        <view class="set-admin" wx:if="{{isAdmin && !item.isAdmin && item.status === 'approved'}}">
+          <text bindtap="setAdmin" data-userid="{{item.userId}}" data-nickname="{{item.userNickname}}">设为管理员</text>
+        </view>
+      </view>
+
+      <view class="empty-state" wx:if="{{filteredList.length === 0}}">
+        <text>暂无{{getTabName(currentTab)}}的申请</text>
+      </view>
+    </view>
+  </scroll-view>
+</view>
+
+<!-- 审核弹窗 -->
+<view class="modal-mask {{showReviewModal ? 'show' : ''}}" bindtap="hideReviewModal">
+  <view class="modal-content" catchtap="preventBubble">
+    <view class="modal-header">
+      <text class="modal-title">{{reviewAction === 'approve' ? '通过申请' : '拒绝申请'}}</text>
+      <view class="modal-close" bindtap="hideReviewModal">✕</view>
+    </view>
+    
+    <view class="modal-body">
+      <view class="modal-info">
+        <text class="info-text">申请人：{{currentApply.userNickname}}</text>
+      </view>
+      <view class="input-item">
+        <text class="input-label">审核留言</text>
+        <textarea class="input-textarea" placeholder="{{reviewAction === 'approve' ? '可以写一些鼓励的话' : '请说明拒绝原因'}}" value="{{reviewMessage}}" bindinput="onReviewMessageInput" maxlength="200"></textarea>
+      </view>
+    </view>
+
+    <view class="modal-footer">
+      <button class="btn btn-outline" bindtap="hideReviewModal">取消</button>
+      <button class="btn btn-primary" bindtap="submitReview" loading="{{submitting}}">确认</button>
+    </view>
+  </view>
+</view>

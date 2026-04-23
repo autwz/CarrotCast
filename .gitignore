@@ -1,0 +1,25 @@
+# 微信小程序编译产物
+miniprogram_npm/
+dist/
+
+# 云函数依赖
+cloudfunctions/node_modules/
+
+# 微信开发者工具配置（包含appid等敏感信息）
+project.config.json
+project.private.config.json
+
+# IDE配置
+.vscode/
+.idea/
+
+# 日志文件
+*.log
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# 临时文件
+*.tmp
+*.bak

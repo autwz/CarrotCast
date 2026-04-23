@@ -1,0 +1,212 @@
+/* 我的招募页面样式 */
+.page {
+  min-height: 100vh;
+  background: #f5f5f5;
+  position: relative;
+}
+
+/* 标签栏 */
+.tabs {
+  display: flex;
+  background: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.tab {
+  flex: 1;
+  text-align: center;
+  padding: 30rpx 0;
+  font-size: 28rpx;
+  color: #666;
+  position: relative;
+}
+
+.tab.active {
+  color: #FF6B6B;
+  font-weight: bold;
+}
+
+.tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60rpx;
+  height: 6rpx;
+  background: #FF6B6B;
+  border-radius: 3rpx;
+}
+
+/* 列表容器 */
+.list-container {
+  height: calc(100vh - 100rpx);
+  padding: 24rpx;
+}
+
+/* 招募卡片 */
+.recruitment-card {
+  margin-bottom: 24rpx;
+}
+
+.card-header {
+  display: flex;
+  position: relative;
+  margin-bottom: 20rpx;
+}
+
+.card-cover {
+  width: 140rpx;
+  height: 140rpx;
+  border-radius: 12rpx;
+  margin-right: 20rpx;
+}
+
+.header-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.card-title {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 12rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-meta {
+  display: flex;
+  align-items: center;
+}
+
+.type-tag {
+  padding: 6rpx 16rpx;
+  border-radius: 8rpx;
+  font-size: 22rpx;
+  margin-right: 12rpx;
+}
+
+.type-tag.type-original {
+  background: #fff1f0;
+  color: #ff4d4f;
+}
+
+.type-tag.type-cover {
+  background: #f0f5ff;
+  color: #597ef7;
+}
+
+.status-tag {
+  padding: 6rpx 16rpx;
+  border-radius: 20rpx;
+  font-size: 22rpx;
+}
+
+.status-tag.status-draft {
+  background: #f0f0f0;
+  color: #999;
+}
+
+.status-tag.status-recruiting {
+  background: #e6f7ff;
+  color: #1890ff;
+}
+
+.status-tag.status-completed {
+  background: #fff7e6;
+  color: #faad14;
+}
+
+.status-tag.status-published {
+  background: #f6ffed;
+  color: #52c41a;
+}
+
+.leader-badge, .owner-badge {
+  font-size: 32rpx;
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+/* 卡片底部 */
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 20rpx;
+  border-top: 1rpx solid #f0f0f0;
+}
+
+.footer-left {
+  display: flex;
+  align-items: center;
+}
+
+.footer-text {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.footer-right {
+  display: flex;
+  align-items: center;
+}
+
+.action-btn {
+  padding: 8rpx 20rpx;
+  font-size: 24rpx;
+  color: #FF6B6B;
+  margin-left: 16rpx;
+}
+
+.view-btn {
+  font-size: 24rpx;
+  color: #999;
+}
+
+/* 空状态 */
+.empty-state {
+  text-align: center;
+  padding: 120rpx 0;
+}
+
+.empty-state image {
+  width: 160rpx;
+  height: 160rpx;
+  margin-bottom: 30rpx;
+  opacity: 0.4;
+}
+
+.empty-state text {
+  display: block;
+  font-size: 28rpx;
+  color: #999;
+  margin-bottom: 30rpx;
+}
+
+.btn-small {
+  padding: 16rpx 40rpx;
+  font-size: 26rpx;
+}
+
+/* 浮动按钮 */
+.float-btn {
+  position: fixed;
+  bottom: 100rpx;
+  right: 40rpx;
+  padding: 20rpx 40rpx;
+  background: linear-gradient(135deg, #FF6B6B, #FF8E8E);
+  border-radius: 50rpx;
+  box-shadow: 0 4rpx 16rpx rgba(255, 107, 107, 0.4);
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #fff;
+}
