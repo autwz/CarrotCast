@@ -6,6 +6,124 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 const db = cloud.database();
 const _ = db.command;
 
+// ==================== 内容审核工具 ====================
+
+// 敏感词黑名单（可根据需要扩展）
+const BLOCKED_WORDS = [
+  // 政治敏感
+  '习近平', '毛主席', '共产党', '国民党', '台独', '港独', '藏独',
+  // 违法违规
+  '赌博', '色情', '诈骗', '毒品', '枪支', '假币',
+  // 其他不良
+  '垃圾', '骗子', '色情'
+];
+
+// 文本敏感词检测
+function checkSensitiveWords(text) {
+  if (!text) return { passed: true };
+  
+  const textLower = text.toLowerCase();
+  for (const word of BLOCKED_WORDS) {
+    if (textLower.includes(word.toLowerCase())) {
+      return { passed: false, reason: `包含敏感词"${word}"` };
+    }
+  }
+  return { passed: true };
+}
+
+// 合并文本内容进行检测
+function combineTextForCheck(data) {
+  return [
+    data.title || '',
+    (data.tags || []).join(''),
+    data.teamNotes || ''
+  ].filter(Boolean).join(' ');
+}
+
+// 文本内容审核（微信安全API）
+async function checkTextContent(text) {
+  if (!text) return { passed: true };
+  
+  try {
+    const res = await cloud.openapi.security.msgSecCheck({
+      content: text
+    });
+    
+    if (res.errCode === 0 || res.errCode === 87014) {
+      return { 
+        passed: res.errCode !== 87014, 
+        reason: res.errCode === 87014 ? '内容审核未通过' : null 
+      };
+    }
+    // 其他错误码暂时放行，避免影响正常发布
+    return { passed: true };
+  } catch (e) {
+    console.error('文本审核API调用失败', e);
+    // API调用失败时降级为本地敏感词检测
+    return checkSensitiveWords(text);
+  }
+}
+
+// 图片审核（微信安全API）
+async function checkImage(fileID) {
+  if (!fileID || !fileID.startsWith('cloud://')) {
+    return { passed: true };
+  }
+  
+  try {
+    const res = await cloud.openapi.security.imgSecCheck({
+      fileId: fileID,
+      version: 'v2'
+    });
+    
+    if (res.errCode === 0 || res.errCode === 87014) {
+      return { 
+        passed: res.errCode !== 87014, 
+        reason: res.errCode === 87014 ? '图片审核未通过' : null 
+      };
+    }
+    return { passed: true };
+  } catch (e) {
+    console.error('图片审核API调用失败', e);
+    // API调用失败时降级放行
+    return { passed: true };
+  }
+}
+
+// 内容审核入口
+async function checkContent(data) {
+  // 1. 先进行本地敏感词检测（快速过滤）
+  const combinedText = combineTextForCheck(data);
+  const localCheck = checkSensitiveWords(combinedText);
+  if (!localCheck.passed) {
+    return localCheck;
+  }
+  
+  // 2. 调用微信文本审核API
+  const textCheck = await checkTextContent(combinedText);
+  if (!textCheck.passed) {
+    return textCheck;
+  }
+  
+  // 3. 调用微信图片审核API（封面图）
+  if (data.coverImage) {
+    const imageCheck = await checkImage(data.coverImage);
+    if (!imageCheck.passed) {
+      return imageCheck;
+    }
+  }
+  
+  // 4. 调用微信图片审核API（微信群二维码）
+  if (data.teamWechatQR) {
+    const qrCheck = await checkImage(data.teamWechatQR);
+    if (!qrCheck.passed) {
+      return qrCheck;
+    }
+  }
+  
+  return { passed: true };
+}
+
 // 从 HTTPS 临时链接还原 cloud:// fileID
 // 临时链接格式: https://{env-id}.tcb.qcloud.la/{path}?sign=xxx&t=xxx
 function restoreCloudFileID(httpsUrl) {
@@ -74,6 +192,16 @@ exports.main = async (event, context) => {
     switch (action) {
       case 'create':
         // 创建招募
+        // 内容审核（敏感词 + 文本审核 + 图片审核）
+        const createContentCheck = await checkContent(data);
+        if (!createContentCheck.passed) {
+          return {
+            success: false,
+            error: `发布失败：${createContentCheck.reason}`,
+            reviewFailed: true
+          };
+        }
+        
         // 校验职位总招募人数上限（200）
         const createTotalCount = (data.positionNeeds || []).reduce((sum, p) => sum + (p.count || 0), 0);
         if (createTotalCount > 200) {
@@ -134,6 +262,19 @@ exports.main = async (event, context) => {
         
       case 'update':
         // 更新招募信息
+        
+        // 如果是发布招募（从草稿变为招募中），进行内容审核
+        if (data.status === 'recruiting' && data.originalStatus === 'draft') {
+          const updateContentCheck = await checkContent(data);
+          if (!updateContentCheck.passed) {
+            return {
+              success: false,
+              error: `发布失败：${updateContentCheck.reason}`,
+              reviewFailed: true
+            };
+          }
+        }
+        
         // 校验职位总招募人数上限（200）
         if (data.positionNeeds) {
           const updateTotalCount = data.positionNeeds.reduce((sum, p) => sum + (p.count || 0), 0);
