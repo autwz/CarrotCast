@@ -60,7 +60,13 @@ Page({
       this.setData({ loading: false });
       
       if (res.result.success) {
-        const newList = res.result.data;
+        const newList = res.result.data.map(item => {
+          // 无效的云存储 URL 使用默认图片
+          if (item.coverImage && item.coverImage.startsWith('cloud://')) {
+            item.coverImage = '/images/default-cover.png';
+          }
+          return item;
+        });
         this.setData({
           recruitmentList: this.data.page === 1 ? newList : this.data.recruitmentList.concat(newList),
           hasMore: newList.length >= this.data.pageSize

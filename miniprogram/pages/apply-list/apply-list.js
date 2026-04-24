@@ -146,7 +146,7 @@ Page({
       if (res.result.success) {
         showSuccess(reviewAction === 'approve' ? '已通过申请' : '已拒绝申请');
         this.hideReviewModal();
-        this.loadApplyList();
+        // 不手动刷新，依赖 onShow 自动刷新
       } else {
         showError(res.result.error || '操作失败');
       }
@@ -192,7 +192,7 @@ Page({
       
       if (res.result.success) {
         showSuccess('设置成功');
-        this.loadApplyList();
+        // 不手动刷新，依赖 onShow 自动刷新
       } else {
         showError(res.result.error || '操作失败');
       }

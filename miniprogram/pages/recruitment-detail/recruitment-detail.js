@@ -31,6 +31,7 @@ Page({
     removeTarget: null,
     availableRoles: [],  // 有空缺的可选职位列表
     allRolesWithStatus: [],  // 所有职位及空缺状态（用于展示）
+    hasShownCompletePrompt: false,  // 防止重复弹窗
     applyForm: {
       userNickname: '',
       userBio: '',
@@ -78,6 +79,26 @@ Page({
         if (res.result.success) {
         const recruitment = res.result.data;
         const userInfo = app.globalData.userInfo;
+        
+        // 处理封面图，无效的云存储 URL 使用默认图片
+        if (recruitment.coverImage && recruitment.coverImage.startsWith('cloud://')) {
+          recruitment.coverImage = '/images/default-cover.png';
+        }
+        
+        // 处理创建者头像
+        if (recruitment.creatorInfo && recruitment.creatorInfo.avatar && recruitment.creatorInfo.avatar.startsWith('cloud://')) {
+          recruitment.creatorInfo.avatar = '/images/icons/avatar.png';
+        }
+        
+        // 处理参与者头像
+        if (recruitment.participantList) {
+          recruitment.participantList = recruitment.participantList.map(p => {
+            if (p.avatar && p.avatar.startsWith('cloud://')) {
+              p.avatar = '/images/icons/avatar.png';
+            }
+            return p;
+          });
+        }
         const isAdmin = userInfo && (recruitment.creatorId === userInfo.openid || (recruitment.admins && recruitment.admins.includes(userInfo.openid)));
         
         // 判断是否为参与者（包括创建者）
@@ -93,13 +114,15 @@ Page({
         const participantList = (recruitment.participantList || []).map(p => ({
           ...p,
           isCreator: p.userId === recruitment.creatorId,
-          roleName: p.isCreator ? '创建者' : (ROLE_NAMES[p.role] || p.role || '参与者')
+          // 优先用 role（审批通过时保存），其次用 applyRole（旧数据兼容），最后 fallback
+          roleName: p.isCreator ? '创建者' : (ROLE_NAMES[p.role] || p.role || ROLE_NAMES[p.applyRole] || p.applyRole || '参与者')
         }));
         
         // 处理职位需求，添加角色名称和当前人数
         const positionNeeds = (recruitment.positionNeeds || []).map(p => {
+          // 兼容旧数据：匹配 role 或 applyRole
           const currentCount = (recruitment.participantList || []).filter(
-            pp => pp.role === p.roleId && pp.status === 'approved' && pp.userId !== recruitment.creatorId
+            pp => (pp.role === p.roleId || pp.applyRole === p.roleId) && pp.status === 'approved' && pp.userId !== recruitment.creatorId
           ).length;
           return {
             ...p,
@@ -131,8 +154,9 @@ Page({
           this.checkMyApplyStatus();
         }
         
-        // 如果招募已满且状态仍为招募中，仅管理员/创建者提示是否进入制作中
-        if (isFull && recruitment.status === 'recruiting' && isAdmin) {
+        // 如果招募已满且状态仍为招募中，仅管理员/创建者提示是否进入制作中（仅弹一次）
+        if (isFull && recruitment.status === 'recruiting' && isAdmin && !this.data.hasShownCompletePrompt) {
+          this.setData({ hasShownCompletePrompt: true });
           this.showCompletePrompt();
         }
       } else {
