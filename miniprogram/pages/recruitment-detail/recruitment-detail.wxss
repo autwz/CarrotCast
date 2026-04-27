@@ -67,7 +67,18 @@
   font-size: 36rpx;
   font-weight: bold;
   color: #333;
-  margin-bottom: 30rpx;
+  margin-bottom: 20rpx;
+}
+
+/* 翻唱版权提示 */
+.copyright-tip {
+  background: #FFF7E6;
+  border: 1rpx solid #FFB800;
+  border-radius: 8rpx;
+  padding: 16rpx 20rpx;
+  margin-bottom: 20rpx;
+  font-size: 24rpx;
+  color: #AD6800;
 }
 
 .info-creator {

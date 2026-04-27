@@ -17,6 +17,11 @@
     <view class="info-section card">
       <view class="info-title">{{recruitment.title}}</view>
       
+      <!-- 翻唱版权提示 -->
+      <view class="copyright-tip" wx:if="{{recruitment.type === 'cover'}}">
+        <text>⚠️ 翻唱作品，请注意版权问题</text>
+      </view>
+      
       <view class="info-creator" bindtap="goToUserProfile" data-openid="{{recruitment.creatorId}}">
         <image class="creator-avatar" src="{{recruitment.creatorInfo.avatar || '/images/icons/avatar.png'}}" mode="aspectFill"></image>
         <view class="creator-detail">
