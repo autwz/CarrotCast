@@ -469,7 +469,7 @@ exports.main = async (event, context) => {
           .limit(pageSize)
           .get();
         
-        // 获取创建者信息
+        // 获取创建者信息（批量查询）
         const creatorIds = [...new Set(listRes.data.map(r => r.creatorId))];
         let creatorsMap = {};
         if (creatorIds.length > 0) {
@@ -481,14 +481,29 @@ exports.main = async (event, context) => {
           });
         }
         
-        const listWithCreator = listRes.data.map(r => ({
-          ...r,
-          creatorNickname: creatorsMap[r.creatorId]?.nickname || '匿名用户',
-          creatorAvatar: creatorsMap[r.creatorId]?.avatar || ''
-        }));
+        // 先过滤无效的 cloud:// 链接，直接用默认图片，避免调用 getTempFileURL
+        const listWithCreator = listRes.data.map(r => {
+          let coverImage = r.coverImage;
+          let creatorAvatar = creatorsMap[r.creatorId]?.avatar || '';
+          
+          // 无效的 cloud:// 直接用默认图片
+          if (!coverImage || coverImage.startsWith('cloud://')) {
+            coverImage = '';
+          }
+          if (!creatorAvatar || creatorAvatar.startsWith('cloud://')) {
+            creatorAvatar = '';
+          }
+          
+          return {
+            ...r,
+            coverImage,
+            creatorNickname: creatorsMap[r.creatorId]?.nickname || '匿名用户',
+            creatorAvatar
+          };
+        });
         
-        // 转换 cloud:// 封面图和创建者头像为临时 HTTPS 链接
-        await convertCloudUrls(listWithCreator, ['coverImage', 'creatorAvatar']);
+        // 只对有效的 HTTPS 链接尝试刷新（可选优化，如果图片链接有效则不处理）
+        // await convertCloudUrls(listWithCreator.filter(item => item.coverImage?.startsWith('https://')), ['coverImage']);
         
         return {
           success: true,
