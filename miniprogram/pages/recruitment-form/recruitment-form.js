@@ -420,6 +420,13 @@ Page({
       return false;
     }
 
+    // 验证职位需求必填
+    const validPositions = this.getValidPositionNeeds();
+    if (validPositions.length === 0) {
+      showError('请至少添加一个职位需求');
+      return false;
+    }
+
     return true;
   },
 
