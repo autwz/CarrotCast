@@ -481,29 +481,27 @@ exports.main = async (event, context) => {
           });
         }
         
-        // 先过滤无效的 cloud:// 链接，直接用默认图片，避免调用 getTempFileURL
+        // 预处理数据
         const listWithCreator = listRes.data.map(r => {
-          let coverImage = r.coverImage;
-          let creatorAvatar = creatorsMap[r.creatorId]?.avatar || '';
-          
-          // 无效的 cloud:// 直接用默认图片
-          if (!coverImage || coverImage.startsWith('cloud://')) {
-            coverImage = '';
-          }
-          if (!creatorAvatar || creatorAvatar.startsWith('cloud://')) {
-            creatorAvatar = '';
-          }
-          
           return {
             ...r,
-            coverImage,
             creatorNickname: creatorsMap[r.creatorId]?.nickname || '匿名用户',
-            creatorAvatar
+            creatorAvatar: creatorsMap[r.creatorId]?.avatar || ''
           };
         });
         
-        // 只对有效的 HTTPS 链接尝试刷新（可选优化，如果图片链接有效则不处理）
-        // await convertCloudUrls(listWithCreator.filter(item => item.coverImage?.startsWith('https://')), ['coverImage']);
+        // 转换 cloud:// 链接为 HTTPS 临时链接
+        await convertCloudUrls(listWithCreator, ['coverImage', 'creatorAvatar']);
+        
+        // 转换后，无效的链接设为空，让前端显示默认图片
+        listWithCreator.forEach(item => {
+          if (!item.coverImage || item.coverImage.startsWith('cloud://')) {
+            item.coverImage = '';
+          }
+          if (!item.creatorAvatar || item.creatorAvatar.startsWith('cloud://')) {
+            item.creatorAvatar = '';
+          }
+        });
         
         return {
           success: true,
