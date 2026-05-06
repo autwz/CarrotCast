@@ -14,7 +14,7 @@ exports.main = async (event, context) => {
   try {
     switch (action) {
       case 'list':
-        // 获取站内信列表
+        // 获取站内信列表（并行查询优化）
         const { page = 1, pageSize = 20, status } = data;
         const query = { userId: openid };
         
@@ -22,18 +22,19 @@ exports.main = async (event, context) => {
           query.status = status;
         }
         
-        const listRes = await db.collection('messages')
-          .where(query)
-          .orderBy('createTime', 'desc')
-          .skip((page - 1) * pageSize)
-          .limit(pageSize)
-          .get();
-        
-        // 统计未读数量
-        const unreadRes = await db.collection('messages').where({
-          userId: openid,
-          status: 'unread'
-        }).count();
+        // 并行执行：查询列表 + 统计未读数量
+        const [listRes, unreadRes] = await Promise.all([
+          db.collection('messages')
+            .where(query)
+            .orderBy('createTime', 'desc')
+            .skip((page - 1) * pageSize)
+            .limit(pageSize)
+            .get(),
+          db.collection('messages').where({
+            userId: openid,
+            status: 'unread'
+          }).count()
+        ]);
         
         return {
           success: true,

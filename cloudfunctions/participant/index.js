@@ -229,8 +229,14 @@ exports.main = async (event, context) => {
       }
         
       case 'review': {
-        // 审核申请（仅管理员可操作）
-        const recruitmentForReview = await db.collection('recruitments').doc(data.recruitmentId).get();
+        // 审核申请（并行查询优化，仅管理员可操作）
+        
+        // 并行查询：招募信息 + 申请者信息 + 审核者信息
+        const [recruitmentForReview, participantBefore, reviewerRes] = await Promise.all([
+          db.collection('recruitments').doc(data.recruitmentId).get(),
+          db.collection('participants').doc(data.id).get(),
+          db.collection('users').where({ openid: openid }).get()
+        ]);
         
         if (!recruitmentForReview.data) {
           return {
@@ -247,10 +253,9 @@ exports.main = async (event, context) => {
           };
         }
         
-        // 获取申请者信息（审核前）
-        const participantBefore = await db.collection('participants').doc(data.id).get();
         const oldStatus = participantBefore.data?.status;
         const reviewApplyRole = participantBefore.data?.applyRole || 'other';
+        const reviewerNickname = reviewerRes.data[0]?.nickname || '管理员';
         
         // 更新申请状态
         const updateData = {
@@ -266,15 +271,6 @@ exports.main = async (event, context) => {
         await db.collection('participants').doc(data.id).update({
           data: updateData
         });
-        
-        // 获取申请者信息
-        const participant = await db.collection('participants').doc(data.id).get();
-        
-        // 获取审核者信息
-        const reviewerRes = await db.collection('users').where({
-          openid: openid
-        }).get();
-        const reviewerNickname = reviewerRes.data[0]?.nickname || '管理员';
         
         // 如果是批准，更新招募的参与者数量
         if (data.status === 'approved' && oldStatus !== 'approved') {
@@ -293,7 +289,7 @@ exports.main = async (event, context) => {
         
         await db.collection('messages').add({
           data: {
-            userId: participant.data.userId,
+            userId: participantBefore.data.userId,
             recruitmentId: data.recruitmentId,
             recruitmentTitle: recruitmentForReview.data.title,
             type: 'review',
@@ -312,8 +308,8 @@ exports.main = async (event, context) => {
           recruitmentTitle: recruitmentForReview.data.title,
           userId: openid,
           userNickname: reviewerNickname,
-          targetUserId: participant.data.userId,
-          targetUserNickname: participant.data.userNickname || '',
+          targetUserId: participantBefore.data.userId,
+          targetUserNickname: participantBefore.data.userNickname || '',
           participantId: data.id,
           oldStatus,
           newStatus: data.status,
@@ -329,8 +325,15 @@ exports.main = async (event, context) => {
       }
         
       case 'getApplyList': {
-        // 获取招募的申请列表（仅管理员可见）
-        const recruitmentForList = await db.collection('recruitments').doc(data.recruitmentId).get();
+        // 获取招募的申请列表（并行查询优化）
+        
+        // 并行查询：招募信息 + 申请列表
+        const [recruitmentForList, applyListRes] = await Promise.all([
+          db.collection('recruitments').doc(data.recruitmentId).get(),
+          db.collection('participants').where({
+            recruitmentId: data.recruitmentId
+          }).get()
+        ]);
         
         if (!recruitmentForList.data) {
           return {
@@ -341,13 +344,6 @@ exports.main = async (event, context) => {
         
         // 检查权限
         const isAdmin = recruitmentForList.data.admins.includes(openid);
-        
-        // 获取所有状态的申请（包括pending, approved, rejected）
-        const applyListRes = await db.collection('participants')
-          .where({
-            recruitmentId: data.recruitmentId
-          })
-          .get();
         
         // 获取申请者用户信息
         const applicantIds = applyListRes.data.map(p => p.userId);

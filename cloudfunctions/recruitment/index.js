@@ -337,60 +337,58 @@ exports.main = async (event, context) => {
         };
         
       case 'get':
-        // 获取招募详情
+        // 获取招募详情（并行查询优化）
         const recruitment = await db.collection('recruitments').doc(data.id).get();
         
-        // 补充职位需求的 roleName（如果缺失）
+        if (!recruitment.data) {
+          return {
+            success: false,
+            error: '招募不存在'
+          };
+        }
+        
+        // 补充职位需求的 roleName
         const ROLE_TYPE_NAMES = {
-          singer: '歌手',
-          lyricist: '词作',
-          composer: '曲作',
-          arranger: '编曲',
-          mixer: '混音',
-          mastering: '母带',
-          producer: '监制',
-          other: '其他'
+          singer: '歌手', lyricist: '词作', composer: '曲作', arranger: '编曲',
+          mixer: '混音', mastering: '母带', producer: '监制', other: '其他'
         };
         
-        if (recruitment.data && recruitment.data.positionNeeds) {
+        if (recruitment.data.positionNeeds) {
           recruitment.data.positionNeeds = recruitment.data.positionNeeds.map(p => ({
             ...p,
             roleName: p.roleName || ROLE_TYPE_NAMES[p.roleId] || p.roleId
           }));
         }
         
-        // 获取创建者信息
-        let creatorInfo = null;
-        if (recruitment.data && recruitment.data.creatorId) {
-          const userRes = await db.collection('users').where({
-            openid: recruitment.data.creatorId
-          }).get();
-          creatorInfo = userRes.data[0] || null;
-        }
+        // 并行查询：创建者信息 + 参与者列表 + 申请统计 + 待审核数量
+        const [creatorDataRes, participants, allParticipantsCount, pendingCountRes] = await Promise.all([
+          // 创建者信息
+          recruitment.data.creatorId
+            ? db.collection('users').where({ openid: recruitment.data.creatorId }).get()
+            : Promise.resolve({ data: [] }),
+          // 参与者列表
+          db.collection('participants').where({ recruitmentId: data.id, status: 'approved' }).get(),
+          // 申请统计
+          db.collection('participants').where({ recruitmentId: data.id }).count(),
+          // 待审核数量
+          db.collection('participants').where({ recruitmentId: data.id, status: 'pending' }).count()
+        ]);
         
-        // 获取参与者列表
-        const participants = await db.collection('participants').where({
-          recruitmentId: data.id,
-          status: 'approved'
-        }).get();
+        const creatorInfo = creatorDataRes.data[0] || null;
         
         // 获取参与者用户信息
         let participantList = [];
         if (participants.data.length > 0) {
-          const userIds = participants.data.map(p => p.userId);
-          const uniqueUserIds = [...new Set(userIds)];
-          const usersRes = await db.collection('users').where({
-            openid: _.in(uniqueUserIds)
-          }).get();
+          const userIds = [...new Set(participants.data.map(p => p.userId))];
+          const usersRes = await db.collection('users').where({ openid: _.in(userIds) }).get();
+          const usersMap = {};
+          usersRes.data.forEach(u => { usersMap[u.openid] = u; });
           
-          participantList = participants.data.map(p => {
-            const user = usersRes.data.find(u => u.openid === p.userId) || {};
-            return {
-              ...p,
-              nickname: user.nickname || '匿名用户',
-              avatar: user.avatar || ''
-            };
-          });
+          participantList = participants.data.map(p => ({
+            ...p,
+            nickname: usersMap[p.userId]?.nickname || '匿名用户',
+            avatar: usersMap[p.userId]?.avatar || ''
+          }));
         }
         
         // 统计各职位人数
@@ -400,35 +398,23 @@ exports.main = async (event, context) => {
           roleCountMap[role] = (roleCountMap[role] || 0) + 1;
         });
         
-        // 获取申请统计
-        const allParticipants = await db.collection('participants').where({
-          recruitmentId: data.id
-        }).count();
-        
-        // 获取待审核数量
-        const pendingCount = await db.collection('participants').where({
-          recruitmentId: data.id,
-          status: 'pending'
-        }).count();
-        
-        // 转换 cloud:// 链接为临时 HTTPS 链接
+        // 组装结果
         const resultData = {
           ...recruitment.data,
           creatorInfo,
           participantList,
           participantCount: participantList.length,
           roleCountMap,
-          totalApplyCount: allParticipants.total,
-          pendingApplyCount: pendingCount.total
+          totalApplyCount: allParticipantsCount.total,
+          pendingApplyCount: pendingCountRes.total
         };
-        await convertCloudUrls([resultData], ['coverImage', 'teamWechatQR']);
-        if (creatorInfo) {
-          await convertCloudUrls([creatorInfo], ['avatar']);
-        }
-        // 转换参与者头像
-        if (participantList.length > 0) {
-          await convertCloudUrls(participantList, ['avatar']);
-        }
+        
+        // 并行转换 cloud:// 链接
+        await Promise.all([
+          convertCloudUrls([resultData], ['coverImage', 'teamWechatQR']),
+          creatorInfo ? convertCloudUrls([creatorInfo], ['avatar']) : Promise.resolve(),
+          participantList.length > 0 ? convertCloudUrls(participantList, ['avatar']) : Promise.resolve()
+        ]);
         
         return {
           success: true,
@@ -436,7 +422,7 @@ exports.main = async (event, context) => {
         };
         
       case 'list':
-        // 获取招募列表
+        // 获取招募列表（并行查询优化）
         const { page = 1, pageSize = 10, status, type, musicType, keyword } = data;
         const query = {};
         
@@ -462,6 +448,7 @@ exports.main = async (event, context) => {
           });
         }
         
+        // 先查招募列表
         const listRes = await db.collection('recruitments')
           .where(query)
           .orderBy('createTime', 'desc')
@@ -510,18 +497,15 @@ exports.main = async (event, context) => {
         };
         
       case 'myList':
-        // 获取我参与的招募列表
-        const myParticipantRes = await db.collection('participants').where({
-          userId: openid
-        }).get();
+        // 获取我参与的招募列表（并行查询优化）
+        
+        // 并行查询：我的参与记录 + 我创建的招募
+        const [myParticipantRes, myCreatedRes] = await Promise.all([
+          db.collection('participants').where({ userId: openid }).get(),
+          db.collection('recruitments').where({ creatorId: openid }).get()
+        ]);
         
         const myRecruitmentIds = myParticipantRes.data.map(p => p.recruitmentId);
-        
-        // 也要包含我创建的招募
-        const myCreatedRes = await db.collection('recruitments').where({
-          creatorId: openid
-        }).get();
-        
         const allMyIds = [...new Set([...myRecruitmentIds, ...myCreatedRes.data.map(r => r._id)])];
         
         if (allMyIds.length === 0) {
@@ -533,6 +517,7 @@ exports.main = async (event, context) => {
           };
         }
         
+        // 查询招募详情
         const myRecruitmentsRes = await db.collection('recruitments')
           .where({
             _id: _.in(allMyIds)
@@ -547,11 +532,10 @@ exports.main = async (event, context) => {
           isCreator: createdIds.includes(r._id)
         }));
         
-        // 为我创建的招募查询待审核数量
+        // 为我创建的招募查询待审核数量（并行）
         const createdList = myListWithFlag.filter(r => r.isCreator);
         if (createdList.length > 0) {
           const createdRecruitmentIds = createdList.map(r => r._id);
-          // 查询这些招募中所有待审核的申请
           const pendingRes = await db.collection('participants').where({
             recruitmentId: _.in(createdRecruitmentIds),
             status: 'pending'
@@ -563,13 +547,12 @@ exports.main = async (event, context) => {
             pendingCountMap[p.recruitmentId] = (pendingCountMap[p.recruitmentId] || 0) + 1;
           });
           
-          // 将待审核数量附加到对应招募
           createdList.forEach(r => {
             r.pendingApplyCount = pendingCountMap[r._id] || 0;
           });
         }
         
-        // 转换 cloud:// 封面图和创建者头像为临时 HTTPS 链接
+        // 转换 cloud:// 封面图为临时 HTTPS 链接
         await convertCloudUrls(myListWithFlag, ['coverImage']);
         
         return {
