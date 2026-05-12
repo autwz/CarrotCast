@@ -65,6 +65,8 @@ Page({
           if (item.coverImage && item.coverImage.startsWith('cloud://')) {
             item.coverImage = '/images/default-cover.png';
           }
+          // 处理标签，最多显示3个
+          item.displayTags = (item.tags || []).slice(0, 3);
           return item;
         });
         this.setData({
