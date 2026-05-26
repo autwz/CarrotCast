@@ -45,6 +45,7 @@ Page({
 
   onLoad: function (options) {
     this.setData({ id: options.id });
+    this._firstLoad = true;
     
     // 检查登录状态
     const userInfo = app.globalData.userInfo;
@@ -57,7 +58,11 @@ Page({
   },
 
   onShow: function () {
-    // 刷新详情
+    // 首次加载跳过（onLoad 已加载），后续返回时刷新
+    if (this._firstLoad) {
+      this._firstLoad = false;
+      return;
+    }
     if (this.data.id) {
       this.loadRecruitmentDetail();
     }

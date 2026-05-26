@@ -29,10 +29,15 @@ Page({
   },
 
   onLoad: function () {
+    this._firstLoad = true;
     this.loadFeedbackList();
   },
 
   onShow: function () {
+    if (this._firstLoad) {
+      this._firstLoad = false;
+      return;
+    }
     this.loadFeedbackList();
   },
 

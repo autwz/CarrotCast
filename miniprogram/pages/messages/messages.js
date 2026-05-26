@@ -12,10 +12,15 @@ Page({
   },
 
   onLoad: function () {
+    this._firstLoad = true;
     this.loadMessages();
   },
 
   onShow: function () {
+    if (this._firstLoad) {
+      this._firstLoad = false;
+      return;
+    }
     this.loadMessages();
   },
 

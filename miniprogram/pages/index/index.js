@@ -21,10 +21,15 @@ Page({
   },
 
   onLoad: function (options) {
+    this._firstLoad = true;
     this.loadRecruitmentList();
   },
 
   onShow: function () {
+    if (this._firstLoad) {
+      this._firstLoad = false;
+      return;
+    }
     // 刷新列表
     this.setData({ page: 1, recruitmentList: [] });
     this.loadRecruitmentList();

@@ -10,10 +10,15 @@ Page({
   },
 
   onLoad: function () {
+    this._firstLoad = true;
     this.loadMyRecruitments();
   },
 
   onShow: function () {
+    if (this._firstLoad) {
+      this._firstLoad = false;
+      return;
+    }
     this.loadMyRecruitments();
   },
 

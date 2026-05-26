@@ -24,10 +24,15 @@ Page({
       recruitmentId: options.recruitmentId,
       recruitmentTitle: decodeURIComponent(options.title || '招募详情')
     });
+    this._firstLoad = true;
     this.loadApplyList();
   },
 
   onShow: function () {
+    if (this._firstLoad) {
+      this._firstLoad = false;
+      return;
+    }
     this.loadApplyList();
   },
 
